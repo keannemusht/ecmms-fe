@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Bell, Check, CheckCheck, Clock, ChevronRight, CalendarClock, FileCheck2, MessageSquare, Siren } from 'lucide-react';
+import { Bell, Check, CheckCheck, Clock, ChevronRight, CalendarClock, FileCheck2, MessageSquare, Siren, Trash2 } from 'lucide-react';
 import api from '../lib/api';
 import { useUI } from '../context/UIContext';
+import { useToast } from '../context/ToastContext';
 import AppShell from '../components/AppShell';
 import { Card, PageHeader, Button, EmptyState, Pagination, cn } from '../components/ui';
-import { formatDateTime } from '../lib/helpers';
+import { formatDateTime, getApiError } from '../lib/helpers';
 import { InAppNotification } from '../lib/types';
 
 type Category = 'all' | 'expiration' | 'submission' | 'escalation';
@@ -15,6 +16,7 @@ const PAGE_SIZE = 10;
 
 export default function NotificationsPage() {
   const { t } = useUI();
+  const toast = useToast();
   const [notifications, setNotifications] = useState<InAppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -82,6 +84,26 @@ export default function NotificationsPage() {
     }
   };
 
+  const clearAll = async () => {
+    const confirmed = await toast.confirm(t.notifications.clearAllConfirm, {
+      title: t.notifications.clearAll,
+      confirmLabel: t.notifications.clearAll,
+      danger: true,
+    });
+    if (!confirmed) return;
+    try {
+      await api.delete('/notifications/in-app');
+      setNotifications([]);
+      setUnreadCount(0);
+      setTotal(0);
+      setTotalPages(1);
+      setPage(1);
+      toast.success(t.common.success);
+    } catch (err) {
+      toast.error(getApiError(err));
+    }
+  };
+
   const categoryMeta: Record<Category, { icon: React.ElementType; label: string }> = {
     all: { icon: Bell, label: t.notifications.categoryAll },
     expiration: { icon: CalendarClock, label: t.notifications.categoryExpiration },
@@ -95,11 +117,18 @@ export default function NotificationsPage() {
         title={t.notifications.title}
         subtitle={t.notifications.subtitle}
         actions={
-          unreadCount > 0 ? (
-            <Button variant="secondary" size="sm" onClick={markAllRead}>
-              <CheckCheck size={14} /> {t.notifications.markAllRead}
-            </Button>
-          ) : undefined
+          <div className="flex items-center gap-2">
+            {unreadCount > 0 && (
+              <Button variant="secondary" size="sm" onClick={markAllRead}>
+                <CheckCheck size={14} /> {t.notifications.markAllRead}
+              </Button>
+            )}
+            {notifications.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={clearAll} title={t.notifications.clearAll}>
+                <Trash2 size={14} className="text-expired" /> {t.notifications.clearAll}
+              </Button>
+            )}
+          </div>
         }
       />
 

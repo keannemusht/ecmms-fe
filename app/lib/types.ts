@@ -29,6 +29,7 @@ export interface Contract {
   employee: EmployeeRef;
   contractNumber: string;
   contractType: EmploymentType;
+  sequence: number;
   startDate: string;
   endDate: string;
   status: ContractStatus;

@@ -159,7 +159,8 @@ const id = {
     deleteConfirm: 'Hapus karyawan ini?',
     noData: 'Tidak ada karyawan ditemukan.',
     importTitle: 'Import Karyawan via Excel/CSV',
-    importSubtitle: 'Kolom: NIK, Nama, Email, Telepon, Departemen, Jabatan, Jenis (PKWT/PKWTT/MAGANG), JoinDate (contoh: 2025-11-21 atau 21 Nov 2025)',
+    importSubtitle: 'Kolom: NIK, Nama, Email, Telepon, Departemen, Jabatan, Jenis (PKWT/PKWTT/MAGANG), JoinDate, lalu kolom kontrak: No Kontrak, Tgl Mulai Kontrak, Tgl Berakhir Kontrak, Jenis Kontrak. Ulangi NIK yang sama untuk tiap kontrak ke-1, ke-2, ke-3 dst.',
+    contractHistory: 'Riwayat Kontrak',
   },
   employeeDetail: {
     tabs: { profile: 'Profil', history: 'Riwayat Kontrak', documents: 'Dokumen', activity: 'Aktivitas' },
@@ -223,6 +224,9 @@ const id = {
     sendWhatsApp: 'Kirim WhatsApp',
     department: 'Departemen',
     deleteConfirm: 'Hapus kontrak ini?',
+    sequence: 'Kontrak Ke',
+    sequenceHint: 'Urutan kontrak karyawan ini (1 = kontrak pertama). Mengubah nilai ini akan mengurutkan ulang kontrak lain secara otomatis.',
+    nextSequence: 'Kontrak berikutnya',
   },
   submissions: {
     title: 'Pengajuan',
@@ -532,7 +536,8 @@ const en: Dict = {
     deleteConfirm: 'Delete this employee?',
     noData: 'No employees found.',
     importTitle: 'Import Employees via Excel/CSV',
-    importSubtitle: 'Columns: NIK, Nama, Email, Telepon, Departemen, Jabatan, Jenis (PKWT/PKWTT/MAGANG), JoinDate (e.g. 2025-11-21 or 21 Nov 2025)',
+    importSubtitle: 'Columns: NIK, Nama, Email, Telepon, Departemen, Jabatan, Jenis (PKWT/PKWTT/MAGANG), JoinDate, then contract columns: No Kontrak, Tgl Mulai Kontrak, Tgl Berakhir Kontrak, Jenis Kontrak. Repeat the same NIK on each row for the 1st, 2nd, 3rd contract, etc.',
+    contractHistory: 'Contract History',
   },
   employeeDetail: {
     tabs: { profile: 'Profile', history: 'Contract History', documents: 'Documents', activity: 'Activity' },
@@ -596,6 +601,9 @@ const en: Dict = {
     sendWhatsApp: 'Send WhatsApp',
     department: 'Department',
     deleteConfirm: 'Delete this contract?',
+    sequence: 'Contract #',
+    sequenceHint: 'This employee\'s contract order (1 = first contract). Changing this re-orders the other contracts automatically.',
+    nextSequence: 'Next contract',
   },
   submissions: {
     title: 'Requests',

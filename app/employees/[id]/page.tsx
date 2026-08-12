@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Building2, Briefcase, Mail, Phone, Calendar, FileCheck, History, User } from 'lucide-react';
+import { ArrowLeft, Building2, Briefcase, Mail, Phone, Calendar, FileCheck, History, User, Pencil, Check, X } from 'lucide-react';
 import api from '../../lib/api';
+import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import AppShell from '../../components/AppShell';
 import { Card, PageHeader, Badge, cn } from '../../components/ui';
@@ -14,8 +15,9 @@ import {
   contractStatusKey,
   initials,
   avatarHue,
+  getApiError,
 } from '../../lib/helpers';
-import { Employee } from '../../lib/types';
+import { Employee, Contract } from '../../lib/types';
 
 const CHANGE_TYPES: Record<string, string> = {
   INITIAL_CREATION: 'initial',
@@ -28,10 +30,43 @@ const CHANGE_TYPES: Record<string, string> = {
 export default function EmployeeDetailPage() {
   const params = useParams();
   const id = params?.id as string;
+  const { user } = useAuth();
   const { t } = useUI();
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'profile' | 'history'>('profile');
+
+  const [editingSeqId, setEditingSeqId] = useState<string | null>(null);
+  const [seqDraft, setSeqDraft] = useState(1);
+  const [savingSeq, setSavingSeq] = useState(false);
+  const [seqError, setSeqError] = useState('');
+
+  const startEditSeq = (c: Contract) => {
+    setEditingSeqId(c.id);
+    setSeqDraft(c.sequence);
+    setSeqError('');
+  };
+
+  const cancelEditSeq = () => {
+    setEditingSeqId(null);
+    setSeqError('');
+  };
+
+  const saveSeq = async (c: Contract) => {
+    if (savingSeq) return;
+    setSavingSeq(true);
+    setSeqError('');
+    try {
+      await api.put(`/contracts/${c.id}`, { sequence: seqDraft });
+      const res = await api.get(`/employees/${id}`);
+      setEmployee(res.data);
+      setEditingSeqId(null);
+    } catch (err) {
+      setSeqError(getApiError(err));
+    } finally {
+      setSavingSeq(false);
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -175,7 +210,12 @@ export default function EmployeeDetailPage() {
               <div className="space-y-3">
                 <div className="rounded-[6px] border border-line bg-muted p-3">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-[11px] font-semibold text-ink">{activeContract.contractNumber}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-[4px] bg-accent-soft px-1.5 py-0.5 text-[10px] font-bold text-accent">
+                        Ke-{activeContract.sequence}
+                      </span>
+                      <span className="font-mono text-[11px] font-semibold text-ink">{activeContract.contractNumber}</span>
+                    </div>
                     <Badge tone={contractStatusTone(activeContract.status)}>
                       {t.status[contractStatusKey(activeContract.status) as 'aktif'] ?? activeContract.status}
                     </Badge>
@@ -207,23 +247,71 @@ export default function EmployeeDetailPage() {
           {!employee.contracts?.length ? (
             <p className="py-6 text-center text-xs text-ink-2">{t.employeeDetail.noHistory}</p>
           ) : (
-            <div className="ml-4 space-y-6 border-l border-line pl-6">
-              {employee.contracts.map((c) => (
-                <div key={c.id} className="relative">
-                  <div className="absolute -left-[31px] top-1.5 h-3.5 w-3.5 rounded-full border-2 border-accent bg-surface" />
-                  <div className="rounded-[6px] border border-line bg-muted/50 p-4">
-                    <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <FileCheck size={15} className="text-accent" />
-                        <h4 className="font-mono text-xs font-bold text-ink">{c.contractNumber}</h4>
-                        <Badge tone={contractStatusTone(c.status)}>
-                          {t.status[contractStatusKey(c.status) as 'aktif'] ?? c.status}
-                        </Badge>
+            <>
+              {seqError && (
+                <div className="mb-4 rounded-[6px] border border-expired/30 bg-expired/10 p-3 text-xs text-expired">{seqError}</div>
+              )}
+              <div className="ml-4 space-y-6 border-l border-line pl-6">
+                {[...(employee.contracts || [])].sort((a, b) => a.sequence - b.sequence).map((c) => (
+                  <div key={c.id} className="relative">
+                    <div className="absolute -left-[31px] top-1.5 h-3.5 w-3.5 rounded-full border-2 border-accent bg-surface" />
+                    <div className="rounded-[6px] border border-line bg-muted/50 p-4">
+                      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <FileCheck size={15} className="text-accent" />
+                          {editingSeqId === c.id ? (
+                            <span className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                min={1}
+                                value={seqDraft}
+                                onChange={(e) => setSeqDraft(Math.max(1, Number(e.target.value) || 1))}
+                                className="h-5 w-14 rounded-[4px] border border-accent bg-surface px-1 text-center text-[10px] font-bold text-ink outline-none focus:ring-1 focus:ring-accent"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => saveSeq(c)}
+                                disabled={savingSeq}
+                                className="text-active hover:opacity-70 disabled:opacity-40"
+                                title={t.common.save}
+                              >
+                                <Check size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={cancelEditSeq}
+                                className="text-expired hover:opacity-70"
+                                title={t.common.cancel}
+                              >
+                                <X size={12} />
+                              </button>
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              <span className="rounded-[4px] bg-accent-soft px-1.5 py-0.5 text-[10px] font-bold text-accent">
+                                Ke-{c.sequence}
+                              </span>
+                              {user?.role !== 'USER' && (
+                                <button
+                                  type="button"
+                                  onClick={() => startEditSeq(c)}
+                                  className="text-ink-3 transition-colors hover:text-accent"
+                                  title={`${t.contracts.sequence}: Ke-${c.sequence}`}
+                                >
+                                  <Pencil size={11} />
+                                </button>
+                              )}
+                            </span>
+                          )}
+                          <h4 className="font-mono text-xs font-bold text-ink">{c.contractNumber}</h4>
+                          <Badge tone={contractStatusTone(c.status)}>
+                            {t.status[contractStatusKey(c.status) as 'aktif'] ?? c.status}
+                          </Badge>
+                        </div>
+                        <span className="text-[11px] text-ink-2">
+                          {formatDate(c.startDate)} — {formatDate(c.endDate)}
+                        </span>
                       </div>
-                      <span className="text-[11px] text-ink-2">
-                        {formatDate(c.startDate)} — {formatDate(c.endDate)}
-                      </span>
-                    </div>
 
                     {c.notes && (
                       <p className="mb-3 rounded-[6px] border border-line bg-surface p-2.5 text-xs text-ink-2">
@@ -252,7 +340,8 @@ export default function EmployeeDetailPage() {
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+            </>
           )}
         </Card>
       )}

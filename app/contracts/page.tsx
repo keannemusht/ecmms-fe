@@ -67,6 +67,7 @@ export default function ContractsPage() {
     startDate: defaultStartDate,
     endDate: defaultEndDate,
     notes: '',
+    sequence: 1,
   });
 
   const [extendData, setExtendData] = useState({
@@ -171,6 +172,7 @@ export default function ContractsPage() {
       startDate: toISODate(new Date(c.startDate)),
       endDate: toISODate(new Date(c.endDate)),
       notes: c.notes || '',
+      sequence: c.sequence || 1,
     });
     setShowEditModal(true);
   };
@@ -316,6 +318,7 @@ export default function ContractsPage() {
           <table className="table">
             <thead>
               <tr>
+                <th className="th">{t.contracts.sequence}</th>
                 <th className="th">{t.contracts.contractNo}</th>
                 <th className="th">{t.contracts.employee}</th>
                 <th className="th">{t.contracts.contractType}</th>
@@ -328,15 +331,20 @@ export default function ContractsPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td className="td py-10 text-center text-xs text-ink-2" colSpan={7}>{t.common.loading}</td>
+                  <td className="td py-10 text-center text-xs text-ink-2" colSpan={8}>{t.common.loading}</td>
                 </tr>
               ) : contracts.length === 0 ? (
                 <tr>
-                  <td className="td py-10 text-center text-xs text-ink-2" colSpan={7}>{t.common.noData}</td>
+                  <td className="td py-10 text-center text-xs text-ink-2" colSpan={8}>{t.common.noData}</td>
                 </tr>
               ) : (
                 contracts.map((c) => (
                   <tr key={c.id} className="trow cursor-pointer" onClick={() => openDetailModalFor(c)}>
+                    <td className="td">
+                      <span className="rounded-[4px] bg-accent-soft px-1.5 py-0.5 text-[10px] font-bold text-accent">
+                        Ke-{c.sequence}
+                      </span>
+                    </td>
                     <td className="td font-mono text-[11px] font-semibold text-ink">{c.contractNumber}</td>
                     <td className="td">
                       <div className="font-semibold text-ink">{c.employee?.name}</div>
@@ -400,9 +408,14 @@ export default function ContractsPage() {
             </Select>
           </Field>
           {selectedEmployee && (
-            <div className="flex items-center justify-between rounded-[6px] border border-accent/30 bg-accent/10 px-3 py-2.5 text-xs text-ink">
-              <span>{t.contracts.joinDateInfo}</span>
-              <span className="font-bold">{formatDate(selectedEmployee.joinDate)}</span>
+            <div className="flex flex-col gap-1 rounded-[6px] border border-accent/30 bg-accent/10 px-3 py-2.5 text-xs text-ink sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                <span>{t.contracts.joinDateInfo}</span>
+                <span className="font-bold">{formatDate(selectedEmployee.joinDate)}</span>
+                <span className="text-accent">·</span>
+                <span>{t.contracts.nextSequence}:</span>
+                <span className="font-bold">Ke-{Math.max(1, (selectedEmployee.contracts?.length || 0) + 1)}</span>
+              </div>
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
@@ -518,6 +531,14 @@ export default function ContractsPage() {
         {formError && <div className="mb-4 rounded-[6px] border border-expired/30 bg-expired/10 p-3 text-xs text-expired">{formError}</div>}
         {formSuccess && <div className="mb-4 rounded-[6px] border border-active/30 bg-active/10 p-3 text-xs text-active">{formSuccess}</div>}
         <form onSubmit={handleEditContract} className="space-y-3.5">
+          <Field label={t.contracts.sequence} hint={t.contracts.sequenceHint}>
+            <Input
+              type="number"
+              min={1}
+              value={editData.sequence}
+              onChange={(e) => setEditData({ ...editData, sequence: Math.max(1, Number(e.target.value) || 1) })}
+            />
+          </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label={t.contracts.typeLabel} required>
               <Select value={editData.contractType} onChange={setEdit('contractType')}>

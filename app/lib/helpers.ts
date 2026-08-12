@@ -209,7 +209,10 @@ export function pickExcelJoinDate(row: Record<string, unknown>): unknown {
   const known = pickExcelValue(row, JOIN_DATE_HEADERS);
   if (known !== undefined) return known;
 
-  const dateishHeader = Object.entries(row).find(([k]) => /join|tanggal|tgl|date|masuk|bergabung/i.test(k));
+  const joinishHeader = Object.entries(row).find(([k]) => /join|bergabung|masuk/i.test(k));
+  if (joinishHeader) return joinishHeader[1];
+
+  const dateishHeader = Object.entries(row).find(([k]) => /tanggal|tgl|date/i.test(k));
   if (dateishHeader) return dateishHeader[1];
 
   const candidates = Object.entries(row)

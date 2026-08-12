@@ -167,8 +167,13 @@ export default function EmployeesPage() {
             phone: String(pickExcelValue(row, ['Telepon', 'Phone', 'No. HP', 'HP']) ?? ''),
             department: String(pickExcelValue(row, ['Departemen', 'Department', 'Divisi']) ?? 'Technology'),
             position: String(pickExcelValue(row, ['Jabatan', 'Position', 'Posisi']) ?? 'Staff'),
-            employmentType: String(pickExcelValue(row, ['Jenis', 'Type', 'Employment Type', 'Jenis Kontrak']) ?? 'PKWT'),
+            employmentType: String(pickExcelValue(row, ['Jenis', 'Type', 'Employment Type', 'Jenis Hubungan Kerja']) ?? 'PKWT'),
             joinDate: parsedJoinDate || fallbackJoinDate,
+            contractNumber: String(pickExcelValue(row, ['No Kontrak', 'No. Kontrak', 'Contract Number', 'Nomor Kontrak', 'Kontrak']) ?? ''),
+            contractStartDate: parseExcelDate(pickExcelValue(row, ['Tgl Mulai Kontrak', 'Tanggal Mulai Kontrak', 'Mulai Kontrak', 'Contract Start Date', 'Contract Start', 'Start Date Kontrak', 'Tgl Mulai']) ?? ''),
+            contractEndDate: parseExcelDate(pickExcelValue(row, ['Tgl Berakhir Kontrak', 'Tanggal Berakhir Kontrak', 'Berakhir Kontrak', 'Contract End Date', 'Contract End', 'End Date Kontrak', 'Tgl Berakhir']) ?? ''),
+            contractType: String(pickExcelValue(row, ['Jenis Kontrak', 'Contract Type', 'Tipe Kontrak']) ?? ''),
+            contractNotes: String(pickExcelValue(row, ['Catatan Kontrak', 'Notes', 'Keterangan']) ?? ''),
           };
         });
 
@@ -260,6 +265,7 @@ export default function EmployeesPage() {
                 <th className="th">{t.employees.name}</th>
                 <th className="th">{t.employees.department}</th>
                 <th className="th">{t.employees.contractType}</th>
+                <th className="th">{t.employees.contractHistory}</th>
                 <th className="th">{t.employees.joinDate}</th>
                 <th className="th">{t.common.status}</th>
                 <th className="th text-right">{t.common.actions}</th>
@@ -268,15 +274,18 @@ export default function EmployeesPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td className="td py-10 text-center text-xs text-ink-2" colSpan={7}>{t.common.loading}</td>
+                  <td className="td py-10 text-center text-xs text-ink-2" colSpan={8}>{t.common.loading}</td>
                 </tr>
               ) : employees.length === 0 ? (
                 <tr>
-                  <td className="td py-10 text-center text-xs text-ink-2" colSpan={7}>{t.employees.noData}</td>
+                  <td className="td py-10 text-center text-xs text-ink-2" colSpan={8}>{t.employees.noData}</td>
                 </tr>
               ) : (
                 employees.map((emp) => {
-                  const activeContract = emp.contracts?.[0];
+                  const contractHistory = (emp.contracts || []).slice().sort((a, b) => a.sequence - b.sequence);
+                  const activeContract =
+                    contractHistory.find((c) => c.status === 'AKTIF' || c.status === 'AKAN_BERAKHIR') ||
+                    contractHistory[contractHistory.length - 1];
                   return (
                     <tr
                       key={emp.id}
@@ -306,6 +315,28 @@ export default function EmployeesPage() {
                         <Badge tone={emp.employmentType === 'PKWTT' ? 'active' : emp.employmentType === 'PKWT' ? 'info' : 'neutral'}>
                           {t.employmentType[emp.employmentType as 'PKWT'] ?? emp.employmentType}
                         </Badge>
+                      </td>
+                      <td className="td">
+                        {contractHistory.length > 0 ? (
+                          <div className="flex flex-wrap items-center gap-1">
+                            {contractHistory.map((c) => (
+                              <span
+                                key={c.id}
+                                className={cn(
+                                  'rounded-[4px] px-1.5 py-0.5 text-[10px] font-bold',
+                                  c.status === 'DIPERPANJANG' || c.status === 'DIANGKAT_TETAP'
+                                    ? 'bg-muted text-ink-2 line-through'
+                                    : 'bg-accent-soft text-accent'
+                                )}
+                                title={`${c.contractNumber} · ${formatDate(c.startDate)} — ${formatDate(c.endDate)}`}
+                              >
+                                Ke-{c.sequence}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-ink-2">-</span>
+                        )}
                       </td>
                       <td className="td text-xs">{formatDate(emp.joinDate)}</td>
                       <td className="td">

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Bell, Clock, History, Plus, Pencil, Mail, MessageSquare, Power } from 'lucide-react';
+import { Bell, Clock, History, Plus, Pencil, Mail, MessageSquare, Power, Trash2 } from 'lucide-react';
 import api from '../lib/api';
 import { useUI } from '../context/UIContext';
 import { useToast } from '../context/ToastContext';
@@ -172,6 +172,42 @@ export default function NotificationSettingsPage() {
       targetRoles: f.targetRoles.includes(r) ? f.targetRoles.filter((x) => x !== r) : [...f.targetRoles, r],
     }));
 
+  const deleteLog = async (id: string, recipient: string) => {
+    const confirmed = await toast.confirm(`${t.notifications.deleteLogConfirm} (${recipient})`, {
+      title: t.notifications.deleteLog,
+      confirmLabel: t.common.delete,
+      danger: true,
+    });
+    if (!confirmed) return;
+    try {
+      await api.delete(`/notifications/logs/${id}`);
+      setLogs((prev) => prev.filter((l) => l.id !== id));
+      setTotal((prev) => Math.max(0, prev - 1));
+      toast.success(t.common.success);
+    } catch (err) {
+      toast.error(getApiError(err));
+    }
+  };
+
+  const clearLogs = async () => {
+    const confirmed = await toast.confirm(t.notifications.clearLogsConfirm, {
+      title: t.notifications.clearLogs,
+      confirmLabel: t.notifications.clearLogs,
+      danger: true,
+    });
+    if (!confirmed) return;
+    try {
+      const res = await api.delete('/notifications/logs');
+      setLogs([]);
+      setTotal(0);
+      setTotalPages(1);
+      setPage(1);
+      toast.success(res.data?.message || t.common.success);
+    } catch (err) {
+      toast.error(getApiError(err));
+    }
+  };
+
   return (
     <AppShell>
       <PageHeader
@@ -254,9 +290,16 @@ export default function NotificationSettingsPage() {
       {/* Logs */}
       <Card className="overflow-hidden">
         <div className="border-b border-line p-5">
-          <h3 className="flex items-center gap-2 text-sm font-bold text-ink">
-            <History size={15} className="text-accent" /> {t.notifications.logs}
-          </h3>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-ink">
+              <History size={15} className="text-accent" /> {t.notifications.logs}
+            </h3>
+            {logs.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={clearLogs} title={t.notifications.clearLogs}>
+                <Trash2 size={13} className="text-expired" /> {t.notifications.clearLogs}
+              </Button>
+            )}
+          </div>
           <p className="mt-0.5 text-xs text-ink-2">{t.notifications.logsSubtitle}</p>
         </div>
         <div className="overflow-x-auto">
@@ -268,16 +311,17 @@ export default function NotificationSettingsPage() {
                 <th className="th">{t.common.details}</th>
                 <th className="th">{t.common.status}</th>
                 <th className="th">{t.notifications.sentAt}</th>
+                <th className="th"></th>
               </tr>
             </thead>
             <tbody>
               {logsLoading ? (
                 <tr>
-                  <td className="td py-8 text-center text-xs text-ink-2" colSpan={5}>{t.common.loading}</td>
+                  <td className="td py-8 text-center text-xs text-ink-2" colSpan={6}>{t.common.loading}</td>
                 </tr>
               ) : logs.length === 0 ? (
                 <tr>
-                  <td className="td py-8 text-center text-xs text-ink-2" colSpan={5}>{t.notifications.noLogs}</td>
+                  <td className="td py-8 text-center text-xs text-ink-2" colSpan={6}>{t.notifications.noLogs}</td>
                 </tr>
               ) : (
                 logs.map((l) => {
@@ -300,6 +344,11 @@ export default function NotificationSettingsPage() {
                         </Badge>
                       </td>
                       <td className="td text-xs">{formatDateTime(l.sentAt)}</td>
+                      <td className="td text-right">
+                        <Button variant="ghost" size="sm" onClick={() => deleteLog(l.id, l.recipient)} title={t.notifications.deleteLog}>
+                          <Trash2 size={13} className="text-expired" />
+                        </Button>
+                      </td>
                     </tr>
                   );
                 })

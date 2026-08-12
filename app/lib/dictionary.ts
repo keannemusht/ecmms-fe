@@ -274,6 +274,10 @@ const id = {
     template: 'Template Pesan',
     isActive: 'Aktif',
     editRule: 'Ubah Aturan',
+    clearLogs: 'Bersihkan Log',
+    clearLogsConfirm: 'Hapus semua log pengiriman? Riwayat pengiriman lama akan dihapus.',
+    deleteLog: 'Hapus log',
+    deleteLogConfirm: 'Hapus log pengiriman ini?',
   },
   reports: {
     title: 'Laporan',
@@ -643,6 +647,10 @@ const en: Dict = {
     template: 'Message Template',
     isActive: 'Active',
     editRule: 'Edit Rule',
+    clearLogs: 'Clear Logs',
+    clearLogsConfirm: 'Delete all delivery logs? Old delivery history will be removed.',
+    deleteLog: 'Delete log',
+    deleteLogConfirm: 'Delete this delivery log?',
   },
   reports: {
     title: 'Reports',

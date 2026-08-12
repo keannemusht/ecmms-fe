@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Upload, Search, Trash2, FileSpreadsheet, Pencil } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -41,6 +41,9 @@ export default function EmployeesPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Employee | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
 
@@ -141,10 +144,14 @@ export default function EmployeesPage() {
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const onPickImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setImportFile(e.target.files?.[0] || null);
+    e.target.value = '';
+  };
 
+  const handleImportSubmit = async () => {
+    if (!importFile || importing) return;
+    setImporting(true);
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
@@ -180,12 +187,15 @@ export default function EmployeesPage() {
         const res = await api.post('/employees/bulk-import', { employees: formatted });
         toast.success(res.data.message);
         setShowImportModal(false);
+        setImportFile(null);
         fetchEmployees();
       } catch {
         toast.error(t.common.error);
+      } finally {
+        setImporting(false);
       }
     };
-    reader.readAsBinaryString(file);
+    reader.readAsBinaryString(importFile);
   };
 
   const handleDelete = async (id: string, name: string) => {
@@ -324,9 +334,11 @@ export default function EmployeesPage() {
                                 key={c.id}
                                 className={cn(
                                   'rounded-[4px] px-1.5 py-0.5 text-[10px] font-bold',
-                                  c.status === 'DIPERPANJANG' || c.status === 'DIANGKAT_TETAP'
-                                    ? 'bg-muted text-ink-2 line-through'
-                                    : 'bg-accent-soft text-accent'
+                                  c.status === 'DIPERPANJANG'
+                                    ? 'bg-warning/10 text-warning'
+                                    : c.status === 'DIANGKAT_TETAP'
+                                      ? 'bg-active/10 text-active'
+                                      : 'bg-accent-soft text-accent'
                                 )}
                                 title={`${c.contractNumber} · ${formatDate(c.startDate)} — ${formatDate(c.endDate)}`}
                               >
@@ -452,20 +464,51 @@ export default function EmployeesPage() {
 
       {/* Import Modal */}
       <Modal open={showImportModal} onClose={() => setShowImportModal(false)} title={t.employees.importTitle}>
-        <div className="text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-[10px] bg-accent-soft text-accent">
-            <FileSpreadsheet size={22} />
+        <div className="space-y-4">
+          <div className="text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-[10px] bg-accent-soft text-accent">
+              <FileSpreadsheet size={22} />
+            </div>
+            <p className="text-xs text-ink-2">{t.employees.importSubtitle}</p>
           </div>
-          <p className="mb-5 text-xs text-ink-2">{t.employees.importSubtitle}</p>
+
           <input
+            ref={importInputRef}
             type="file"
             accept=".xlsx, .xls, .csv"
-            onChange={handleFileUpload}
-            className={cn(
-              'w-full cursor-pointer rounded-[6px] border border-dashed border-line bg-base px-4 py-3 text-xs text-ink-2',
-              'file:mr-3 file:cursor-pointer file:rounded-[6px] file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white dark:file:text-ink hover:border-accent'
-            )}
+            onChange={onPickImportFile}
+            className="hidden"
           />
+
+          <button
+            type="button"
+            onClick={() => importInputRef.current?.click()}
+            className={cn(
+              'flex w-full items-center justify-center gap-2 rounded-[6px] border border-dashed px-4 py-4 text-xs font-semibold transition-colors',
+              importFile
+                ? 'border-active/40 bg-active/10 text-ink'
+                : 'border-line bg-base text-ink-2 hover:border-accent hover:text-accent'
+            )}
+          >
+            <FileSpreadsheet size={16} className={importFile ? 'text-active' : 'text-accent'} />
+            {importFile ? importFile.name : t.employees.chooseFile}
+          </button>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setShowImportModal(false);
+                setImportFile(null);
+              }}
+            >
+              {t.common.cancel}
+            </Button>
+            <Button type="button" variant="primary" onClick={handleImportSubmit} disabled={!importFile || importing}>
+              <Upload size={14} /> {importing ? t.common.loading : t.employees.importBtn}
+            </Button>
+          </div>
         </div>
       </Modal>
     </AppShell>

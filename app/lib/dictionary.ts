@@ -160,6 +160,8 @@ const id = {
     noData: 'Tidak ada karyawan ditemukan.',
     importTitle: 'Import Karyawan via Excel/CSV',
     importSubtitle: 'Kolom: NIK, Nama, Email, Telepon, Departemen, Jabatan, Jenis (PKWT/PKWTT/MAGANG), JoinDate, lalu kolom kontrak: No Kontrak, Tgl Mulai Kontrak, Tgl Berakhir Kontrak, Jenis Kontrak. Ulangi NIK yang sama untuk tiap kontrak ke-1, ke-2, ke-3 dst.',
+    chooseFile: 'Pilih File Excel/CSV',
+    importBtn: 'Import',
     contractHistory: 'Riwayat Kontrak',
   },
   employeeDetail: {
@@ -537,6 +539,8 @@ const en: Dict = {
     noData: 'No employees found.',
     importTitle: 'Import Employees via Excel/CSV',
     importSubtitle: 'Columns: NIK, Nama, Email, Telepon, Departemen, Jabatan, Jenis (PKWT/PKWTT/MAGANG), JoinDate, then contract columns: No Kontrak, Tgl Mulai Kontrak, Tgl Berakhir Kontrak, Jenis Kontrak. Repeat the same NIK on each row for the 1st, 2nd, 3rd contract, etc.',
+    chooseFile: 'Choose Excel/CSV File',
+    importBtn: 'Import',
     contractHistory: 'Contract History',
   },
   employeeDetail: {

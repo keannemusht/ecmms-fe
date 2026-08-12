@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Bell, Clock, History, Plus, Pencil, Mail, MessageSquare, Power, Trash2 } from 'lucide-react';
+import { Bell, Clock, History, Plus, Pencil, Mail, MessageSquare, Power, Trash2, RefreshCw } from 'lucide-react';
 import api from '../lib/api';
 import { useUI } from '../context/UIContext';
 import { useToast } from '../context/ToastContext';
@@ -58,6 +58,7 @@ export default function NotificationSettingsPage() {
   const [logs, setLogs] = useState<NotificationLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [runningCron, setRunningCron] = useState(false);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -208,15 +209,34 @@ export default function NotificationSettingsPage() {
     }
   };
 
+  const handleRunCron = async () => {
+    setRunningCron(true);
+    try {
+      const res = await api.post('/notifications/run-cron');
+      toast.success(res.data?.message || t.common.success);
+      fetchLogs();
+    } catch (err) {
+      toast.error(getApiError(err));
+    } finally {
+      setRunningCron(false);
+    }
+  };
+
   return (
     <AppShell>
       <PageHeader
         title={t.notifications.rules}
         subtitle={t.notifications.subtitle}
         actions={
-          <Button variant="accent" onClick={openAdd}>
-            <Plus size={15} /> {t.notifications.addRule}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={handleRunCron} disabled={runningCron}>
+              <RefreshCw size={14} className={cn(runningCron && 'animate-spin')} />
+              {runningCron ? t.common.loading : 'Cek Notifikasi Sekarang'}
+            </Button>
+            <Button variant="accent" onClick={openAdd}>
+              <Plus size={15} /> {t.notifications.addRule}
+            </Button>
+          </div>
         }
       />
 

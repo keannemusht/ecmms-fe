@@ -342,7 +342,7 @@ export default function EmployeesPage() {
                                 )}
                                 title={`${c.contractNumber} · ${formatDate(c.startDate)} — ${formatDate(c.endDate)}`}
                               >
-                                Ke-{c.sequence}
+                                {t.common.seqPrefix}{c.sequence}
                               </span>
                             ))}
                           </div>

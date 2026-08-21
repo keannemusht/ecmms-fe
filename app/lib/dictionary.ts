@@ -73,6 +73,7 @@ const id = {
     next: 'Berikutnya',
     pageInfo: 'Menampilkan {from}–{to} dari {total}',
     pageOf: 'Halaman {current} dari {total}',
+    seqPrefix: 'Ke-',
   },
   login: {
     title: 'Masuk ke Sistem',
@@ -251,7 +252,7 @@ const id = {
   notifications: {
     title: 'Pusat Notifikasi',
     subtitle: 'Notifikasi pengingat jatuh tempo dan aktivitas sistem.',
-    markAllRead: 'Tandai semua dibaca',
+    markAllRead: 'Tandai dibaca',
     clearAll: 'Bersihkan semua',
     clearAllConfirm: 'Hapus semua notifikasi? Riwayat notifikasi lama akan dihapus.',
     empty: 'Tidak ada notifikasi.',
@@ -284,6 +285,7 @@ const id = {
     clearLogsConfirm: 'Hapus semua log pengiriman? Riwayat pengiriman lama akan dihapus.',
     deleteLog: 'Hapus log',
     deleteLogConfirm: 'Hapus log pengiriman ini?',
+    runCheck: 'Cek Notifikasi Sekarang',
   },
   reports: {
     title: 'Laporan',
@@ -452,6 +454,7 @@ const en: Dict = {
     next: 'Next',
     pageInfo: 'Showing {from}–{to} of {total}',
     pageOf: 'Page {current} of {total}',
+    seqPrefix: '#',
   },
   login: {
     title: 'Sign in',
@@ -663,6 +666,7 @@ const en: Dict = {
     clearLogsConfirm: 'Delete all delivery logs? Old delivery history will be removed.',
     deleteLog: 'Delete log',
     deleteLogConfirm: 'Delete this delivery log?',
+    runCheck: 'Check Notifications Now',
   },
   reports: {
     title: 'Reports',

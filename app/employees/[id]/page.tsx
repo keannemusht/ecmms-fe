@@ -212,7 +212,7 @@ export default function EmployeeDetailPage() {
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="rounded-[4px] bg-accent-soft px-1.5 py-0.5 text-[10px] font-bold text-accent">
-                        Ke-{activeContract.sequence}
+                        {t.common.seqPrefix}{activeContract.sequence}
                       </span>
                       <span className="font-mono text-[11px] font-semibold text-ink">{activeContract.contractNumber}</span>
                     </div>
@@ -289,14 +289,14 @@ export default function EmployeeDetailPage() {
                           ) : (
                             <span className="flex items-center gap-1">
                               <span className="rounded-[4px] bg-accent-soft px-1.5 py-0.5 text-[10px] font-bold text-accent">
-                                Ke-{c.sequence}
+                                {t.common.seqPrefix}{c.sequence}
                               </span>
                               {user?.role !== 'USER' && (
                                 <button
                                   type="button"
                                   onClick={() => startEditSeq(c)}
                                   className="text-ink-3 transition-colors hover:text-accent"
-                                  title={`${t.contracts.sequence}: Ke-${c.sequence}`}
+                                  title={`${t.contracts.sequence}: ${t.common.seqPrefix}${c.sequence}`}
                                 >
                                   <Pencil size={11} />
                                 </button>

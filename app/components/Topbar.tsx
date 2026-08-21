@@ -11,7 +11,7 @@ import { initials, avatarHue } from '../lib/helpers';
 
 export default function Topbar() {
   const { user, logout } = useAuth();
-  const { theme, toggleTheme, lang, toggleLang, t } = useUI();
+  const { theme, toggleTheme, lang, setLang, t } = useUI();
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [profileOpen, setProfileOpen] = useState(false);
@@ -64,14 +64,16 @@ export default function Topbar() {
 
       <div className="flex items-center gap-1.5 sm:gap-2">
         {/* Language toggle */}
-        <div className="flex items-center overflow-hidden rounded-[6px] border border-line bg-base" role="group" aria-label={t.topbar.language}>
+        <div className="flex items-center rounded-[6px] border border-line bg-base p-0.5" role="group" aria-label={t.topbar.language}>
           {(['id', 'en'] as const).map((l) => (
             <button
               key={l}
-              onClick={() => toggleLang()}
+              onClick={() => setLang(l)}
               className={cn(
-                'px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide leading-none transition-opacity duration-150',
-                lang === l ? 'text-ink opacity-100' : 'text-ink-2 opacity-40 hover:opacity-80'
+                'rounded-[4px] px-2 py-1 text-[11px] font-bold uppercase tracking-wider leading-none transition-all duration-150',
+                lang === l
+                  ? 'bg-surface text-ink shadow-xs border border-line/60'
+                  : 'text-ink-2/60 hover:text-ink hover:bg-muted/40'
               )}
               aria-pressed={lang === l}
               title={l === 'id' ? 'Bahasa Indonesia' : 'English'}

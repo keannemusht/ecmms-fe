@@ -231,7 +231,7 @@ export default function NotificationSettingsPage() {
           <div className="flex items-center gap-2">
             <Button variant="secondary" onClick={handleRunCron} disabled={runningCron}>
               <RefreshCw size={14} className={cn(runningCron && 'animate-spin')} />
-              {runningCron ? t.common.loading : 'Cek Notifikasi Sekarang'}
+              {runningCron ? t.common.loading : t.notifications.runCheck}
             </Button>
             <Button variant="accent" onClick={openAdd}>
               <Plus size={15} /> {t.notifications.addRule}

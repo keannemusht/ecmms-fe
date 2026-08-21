@@ -342,7 +342,7 @@ export default function ContractsPage() {
                   <tr key={c.id} className="trow cursor-pointer" onClick={() => openDetailModalFor(c)}>
                     <td className="td">
                       <span className="rounded-[4px] bg-accent-soft px-1.5 py-0.5 text-[10px] font-bold text-accent">
-                        Ke-{c.sequence}
+                        {t.common.seqPrefix}{c.sequence}
                       </span>
                     </td>
                     <td className="td font-mono text-[11px] font-semibold text-ink">{c.contractNumber}</td>
@@ -414,7 +414,7 @@ export default function ContractsPage() {
                 <span className="font-bold">{formatDate(selectedEmployee.joinDate)}</span>
                 <span className="text-accent">·</span>
                 <span>{t.contracts.nextSequence}:</span>
-                <span className="font-bold">Ke-{Math.max(1, (selectedEmployee.contracts?.length || 0) + 1)}</span>
+                <span className="font-bold">{t.common.seqPrefix}{Math.max(1, (selectedEmployee.contracts?.length || 0) + 1)}</span>
               </div>
             </div>
           )}

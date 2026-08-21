@@ -90,12 +90,12 @@ export default function NotificationBell() {
 
       {isOpen && (
         <div className="absolute right-0 z-50 mt-3 w-80 overflow-hidden rounded-[10px] border border-line bg-surface shadow-2xl sm:w-96">
-          <div className="flex items-center justify-between border-b border-line px-4 py-3">
-            <div className="flex items-center gap-2">
-              <Bell size={15} className="text-accent" />
-              <span className="text-sm font-semibold text-ink">{t.notifications.title}</span>
+          <div className="flex items-center justify-between gap-2 border-b border-line px-3.5 py-3">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <Bell size={15} className="shrink-0 text-accent" />
+              <span className="truncate text-xs font-semibold text-ink sm:text-sm">{t.notifications.title}</span>
               {unreadCount > 0 && (
-                <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-accent">
+                <span className="shrink-0 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-accent">
                   {unreadCount} {t.notifications.unread}
                 </span>
               )}
@@ -103,7 +103,7 @@ export default function NotificationBell() {
             {unreadCount > 0 && (
               <button
                 onClick={markAllRead}
-                className="flex items-center gap-1 text-[11px] font-medium text-accent hover:underline"
+                className="flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] font-medium text-accent transition-colors hover:underline"
               >
                 <Check size={12} /> {t.notifications.markAllRead}
               </button>

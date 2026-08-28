@@ -121,7 +121,7 @@ export default function SubmissionsPage() {
         title={t.submissions.title}
         subtitle={t.submissions.subtitle}
         actions={
-          <Button variant="accent" onClick={() => setShowSubmitModal(true)}>
+          <Button variant="accent" onClick={() => setShowSubmitModal(true)} className="w-full sm:w-auto">
             <Plus size={15} /> {t.submissions.newSubmission}
           </Button>
         }

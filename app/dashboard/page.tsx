@@ -212,7 +212,7 @@ export default function DashboardPage() {
 
       {/* Expiring contracts */}
       <Card className="mb-5">
-        <div className="flex flex-col gap-4 border-b border-line p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-b border-line p-4 sm:p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="flex items-center gap-2 text-sm font-bold text-ink">
               <Clock size={16} className="text-accent" />
@@ -220,14 +220,14 @@ export default function DashboardPage() {
             </h3>
             <p className="mt-0.5 text-xs text-ink-2">{t.dashboard.expiringTableSubtitle}</p>
           </div>
-          <div className="flex items-center gap-1 rounded-[6px] border border-line bg-muted p-1">
+          <div className="flex flex-wrap items-center gap-1 rounded-[6px] border border-line bg-muted p-1 sm:flex-nowrap">
             {[7, 30, 60, 90].map((d) => (
               <button
                 key={d}
                 onClick={() => setExpiringDays(d)}
                 className={cn(
-                  'rounded-[4px] px-3 py-1.5 text-[11px] font-semibold transition-colors',
-                  expiringDays === d ? 'bg-accent text-white dark:text-ink' : 'text-ink-2 hover:text-ink'
+                  'flex-1 sm:flex-none rounded-[4px] px-2.5 py-1 text-[11px] font-semibold transition-colors text-center',
+                  expiringDays === d ? 'bg-accent text-white dark:text-ink shadow-xs' : 'text-ink-2 hover:text-ink'
                 )}
               >
                 {d} {t.dashboard.days}
@@ -236,7 +236,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto min-w-full">
           <table className="table">
             <thead>
               <tr>
@@ -287,7 +287,7 @@ export default function DashboardPage() {
                         </Badge>
                       </td>
                       <td className="td text-right">
-                        <Link href={`/contracts?extend=${c.id}`} className="btn btn-secondary btn-sm">
+                        <Link href={`/contracts?extend=${c.id}`} className="btn btn-secondary btn-sm whitespace-nowrap">
                           {t.contracts.extendAction}
                         </Link>
                       </td>
@@ -302,7 +302,7 @@ export default function DashboardPage() {
 
       {/* Needs follow-up (overdue) */}
       <Card>
-        <div className="border-b border-line p-5">
+        <div className="border-b border-line p-4 sm:p-5">
           <h3 className="flex items-center gap-2 text-sm font-bold text-ink">
             <UserCheck size={16} className="text-expired" />
             {t.dashboard.needsFollowUp}
@@ -316,21 +316,21 @@ export default function DashboardPage() {
             {summary.overdueList.map((c) => {
               const diff = daysUntil(c.endDate);
               return (
-                <div key={c.id} className="flex items-center justify-between gap-4 px-5 py-3">
-                  <div className="min-w-0">
-                    <div className="text-xs font-semibold text-ink">
-                      {c.employee.name}
-                      <span className="ml-2 font-mono text-[10px] font-normal text-ink-2">{c.employee.nik}</span>
+                <div key={c.id} className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold text-ink">
+                      <span>{c.employee.name}</span>
+                      <span className="font-mono text-[10px] font-normal text-ink-2">({c.employee.nik})</span>
                     </div>
-                    <div className="text-[11px] text-ink-2">
+                    <div className="mt-0.5 text-[11px] text-ink-2">
                       {c.employee.department} · {formatDate(c.endDate)}
                     </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
+                  <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2.5 shrink-0">
                     <Badge tone="expired">
                       {diff === null ? '-' : `${Math.abs(diff)} ${t.dashboard.days} ${t.dashboard.overdue}`}
                     </Badge>
-                    <Link href={`/contracts?extend=${c.id}`} className="btn btn-secondary btn-sm">
+                    <Link href={`/contracts?extend=${c.id}`} className="btn btn-secondary btn-sm w-full sm:w-auto text-center justify-center">
                       {t.dashboard.followUpAction}
                     </Link>
                   </div>

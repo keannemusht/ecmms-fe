@@ -185,30 +185,30 @@ export function Modal({
 
   if (!open) return null;
 
-  const sizeClass = size === 'sm' ? 'max-w-sm' : size === 'lg' ? 'max-w-2xl' : 'max-w-lg';
+  const sizeClass = size === 'sm' ? 'sm:max-w-sm' : size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-lg';
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={cn('w-full rounded-[10px] border border-line bg-surface shadow-xl', sizeClass)}
+        className={cn('w-full max-w-[calc(100%-1rem)] rounded-[10px] border border-line bg-surface shadow-2xl my-auto', sizeClass)}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
+        <div className="flex items-start justify-between gap-4 border-b border-line px-4 py-3.5 sm:px-5 sm:py-4">
           <div>
             <h3 className="font-heading text-base font-bold text-ink">{title}</h3>
             {subtitle && <p className="mt-0.5 text-xs text-ink-2">{subtitle}</p>}
           </div>
-          <button onClick={onClose} className="rounded-[6px] p-1 text-ink-2 hover:bg-muted hover:text-ink" aria-label="Close">
+          <button onClick={onClose} className="rounded-[6px] p-1 text-ink-2 hover:bg-muted hover:text-ink shrink-0" aria-label="Close">
             <X size={18} />
           </button>
         </div>
-        <div className="max-h-[70vh] overflow-y-auto px-5 py-4">{children}</div>
-        {footer && <div className="flex justify-end gap-2 border-t border-line px-5 py-4">{footer}</div>}
+        <div className="max-h-[75vh] overflow-y-auto px-4 py-3.5 sm:px-5 sm:py-4">{children}</div>
+        {footer && <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 border-t border-line px-4 py-3.5 sm:px-5 sm:py-4">{footer}</div>}
       </div>
     </div>
   );

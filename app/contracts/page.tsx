@@ -283,7 +283,7 @@ export default function ContractsPage() {
         subtitle={t.contracts.subtitle}
         actions={
           user?.role !== 'USER' ? (
-            <Button variant="accent" onClick={() => setShowAddModal(true)}>
+            <Button variant="accent" onClick={() => setShowAddModal(true)} className="w-full sm:w-auto">
               <Plus size={15} /> {t.contracts.addContract}
             </Button>
           ) : undefined
@@ -302,8 +302,8 @@ export default function ContractsPage() {
                 key={st.value}
                 onClick={() => setStatusFilter(st.value)}
                 className={cn(
-                  'rounded-[4px] px-3 py-1.5 text-[11px] font-semibold transition-colors',
-                  statusFilter === st.value ? 'bg-accent text-white dark:text-ink' : 'bg-muted text-ink-2 hover:text-ink'
+                  'rounded-[4px] px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                  statusFilter === st.value ? 'bg-accent text-white dark:text-ink shadow-xs' : 'bg-muted text-ink-2 hover:text-ink'
                 )}
               >
                 {t.status[st.labelKey as 'aktif'] ?? t.common.all}

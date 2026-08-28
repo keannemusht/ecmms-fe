@@ -12,6 +12,10 @@ interface UIContextType {
   setLang: (lang: Lang) => void;
   toggleLang: () => void;
   t: Dict;
+  mobileMenuOpen: boolean;
+  setMobileMenuOpen: (open: boolean) => void;
+  toggleMobileMenu: () => void;
+  closeMobileMenu: () => void;
 }
 
 const UIContext = createContext<UIContextType | undefined>(undefined);
@@ -19,6 +23,7 @@ const UIContext = createContext<UIContextType | undefined>(undefined);
 export function UIProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('light');
   const [lang, setLang] = useState<Lang>('id');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
@@ -26,6 +31,8 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
 
   const toggleTheme = () => setTheme((t) => (t === 'light' ? 'dark' : 'light'));
   const toggleLang = () => setLang((l) => (l === 'id' ? 'en' : 'id'));
+  const toggleMobileMenu = () => setMobileMenuOpen((o) => !o);
+  const closeMobileMenu = () => setMobileMenuOpen(false);
 
   return (
     <UIContext.Provider
@@ -36,6 +43,10 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
         setLang,
         toggleLang,
         t: dictionary[lang],
+        mobileMenuOpen,
+        setMobileMenuOpen,
+        toggleMobileMenu,
+        closeMobileMenu,
       }}
     >
       {children}

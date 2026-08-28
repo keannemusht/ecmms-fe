@@ -15,7 +15,7 @@ const id = {
     auditLogs: 'Audit Log',
     myProfile: 'Profil Saya',
     logout: 'Keluar',
-    logoSub: 'PKWT Portal',
+    logoSub: 'Dashboard Portal',
   },
   topbar: {
     searchPlaceholder: 'Cari karyawan, no. kontrak...',
@@ -396,7 +396,7 @@ const en: Dict = {
     auditLogs: 'Audit Log',
     myProfile: 'My Profile',
     logout: 'Logout',
-    logoSub: 'PKWT Portal',
+    logoSub: 'Dashboard Portal',
   },
   topbar: {
     searchPlaceholder: 'Search employee, contract no...',

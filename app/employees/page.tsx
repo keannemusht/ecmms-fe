@@ -225,10 +225,10 @@ export default function EmployeesPage() {
         actions={
           user?.role !== 'USER' ? (
             <>
-              <Button variant="secondary" onClick={() => setShowImportModal(true)}>
+              <Button variant="secondary" onClick={() => setShowImportModal(true)} className="w-full sm:w-auto">
                 <Upload size={15} className="text-accent" /> {t.employees.bulkImport}
               </Button>
-              <Button variant="accent" onClick={openAdd}>
+              <Button variant="accent" onClick={openAdd} className="w-full sm:w-auto">
                 <Plus size={15} /> {t.employees.addEmployee}
               </Button>
             </>

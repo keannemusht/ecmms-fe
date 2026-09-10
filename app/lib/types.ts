@@ -1,6 +1,7 @@
 export type Role = 'ADMIN' | 'MANAGEMENT' | 'USER';
 export type EmploymentType = 'PKWT' | 'PKWTT' | 'MAGANG';
-export type ContractStatus = 'AKTIF' | 'AKAN_BERAKHIR' | 'EXPIRED' | 'DIPERPANJANG' | 'DIANGKAT_TETAP';
+export type EmployeeLevel = 'Director' | 'Manager' | 'Staff' | 'Non-Staff';
+export type ContractStatus = 'AKTIF' | 'AKAN_BERAKHIR' | 'EXPIRED' | 'DIPERPANJANG' | 'RESIGN';
 export type NotificationChannel = 'EMAIL' | 'WHATSAPP' | 'IN_APP';
 export type SubmissionType = 'EXTENSION' | 'DATA_UPDATE' | 'RESIGNATION' | 'OTHER';
 export type SubmissionStatus = 'PENDING' | 'DIPROSES' | 'DISETUJUI' | 'DITOLAK';
@@ -9,10 +10,11 @@ export interface EmployeeRef {
   id: string;
   nik: string;
   name: string;
-  email: string;
+  email: string | null;
   phone: string | null;
   department: string;
   position: string;
+  level?: string | null;
   employmentType: EmploymentType;
   joinDate: string;
 }
@@ -27,7 +29,7 @@ export interface Contract {
   id: string;
   employeeId: string;
   employee: EmployeeRef;
-  contractNumber: string;
+  contractNumber: string | null;
   contractType: EmploymentType;
   sequence: number;
   startDate: string;
@@ -159,4 +161,50 @@ export interface ChartDatum {
 export interface DashboardCharts {
   departmentData: ChartDatum[];
   contractTypeData: ChartDatum[];
+}
+
+export interface ContractEvaluation {
+  id: string;
+  documentNumber: string | null;
+  employeeId: string;
+  employee?: {
+    id: string;
+    nik: string;
+    name: string;
+    department: string;
+    position: string;
+    level?: string | null;
+  };
+  contractId: string | null;
+  contract?: {
+    id: string;
+    contractNumber: string | null;
+    sequence: number;
+    startDate: string;
+    endDate: string;
+    status: ContractStatus;
+  } | null;
+  periodEnd: string | null;
+  employeeLevel: string | null;
+  scoresJson: string;
+  statementsJson: string | null;
+  totalScore: number;
+  averageScore: number;
+  ratingGrade: string | null;
+  recommendationType: string;
+  recommendationDuration: number | null;
+  evaluatorName: string | null;
+  evaluatorPosition: string | null;
+  knownByName: string | null;
+  knownByPosition: string | null;
+  checkedByName: string | null;
+  checkedByPosition: string | null;
+  approvedByName: string | null;
+  approvedByPosition: string | null;
+  evaluationDate: string | null;
+  submittedDate: string | null;
+  notes: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
 }

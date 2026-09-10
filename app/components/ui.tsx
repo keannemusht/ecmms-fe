@@ -173,7 +173,7 @@ export function Modal({
   subtitle?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
 }) {
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -185,7 +185,14 @@ export function Modal({
 
   if (!open) return null;
 
-  const sizeClass = size === 'sm' ? 'sm:max-w-sm' : size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-lg';
+  const sizeClass =
+    size === 'sm'
+      ? 'sm:max-w-sm'
+      : size === 'lg'
+      ? 'sm:max-w-2xl'
+      : size === 'xl'
+      ? 'sm:max-w-5xl'
+      : 'sm:max-w-lg';
 
   return (
     <div

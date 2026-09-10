@@ -5,7 +5,7 @@ import { Plus, Pencil, Trash2, Power } from 'lucide-react';
 import api from '../lib/api';
 import { useUI } from '../context/UIContext';
 import AppShell from './AppShell';
-import { Card, PageHeader, Badge, Button, Modal, Field, Input, EmptyState } from './ui';
+import { Card, PageHeader, Badge, Button, Modal, Field, Input, EmptyState, Pagination } from './ui';
 import { formatDate, getApiError } from '../lib/helpers';
 import { ReferenceItem } from '../lib/types';
 
@@ -20,7 +20,9 @@ export default function ReferenceData({ endpoint, dict, icon: Icon, addIcon: Add
   const { t } = useUI();
   const d = t[dict];
 
+  const PAGE_SIZE = 10;
   const [items, setItems] = useState<ReferenceItem[]>([]);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [pageMsg, setPageMsg] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
 
@@ -132,7 +134,7 @@ export default function ReferenceData({ endpoint, dict, icon: Icon, addIcon: Add
           <EmptyState icon={Icon} title={d.empty} />
         ) : (
           <div className="overflow-x-auto">
-            <table className="table">
+            <table className="table min-w-[500px]">
               <thead>
                 <tr>
                   <th className="th">{d.name}</th>
@@ -142,7 +144,7 @@ export default function ReferenceData({ endpoint, dict, icon: Icon, addIcon: Add
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => (
+                {items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((item) => (
                   <tr key={item.id} className="trow">
                     <td className="td">
                       <div className="flex items-center gap-2.5">
@@ -177,6 +179,18 @@ export default function ReferenceData({ endpoint, dict, icon: Icon, addIcon: Add
             </table>
           </div>
         )}
+
+        <Pagination
+          page={page}
+          totalPages={Math.ceil(items.length / PAGE_SIZE)}
+          total={items.length}
+          pageSize={PAGE_SIZE}
+          onPage={setPage}
+          previousLabel={t.common.previous}
+          nextLabel={t.common.next}
+          pageInfoLabel={t.common.pageInfo}
+          pageOfLabel={t.common.pageOf}
+        />
       </Card>
 
       <Modal
@@ -190,11 +204,11 @@ export default function ReferenceData({ endpoint, dict, icon: Icon, addIcon: Add
           <Field label={d.name} required>
             <Input value={modal.name} onChange={(e) => setModal({ ...modal, name: e.target.value })} autoFocus required />
           </Field>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setModal({ ...modal, open: false })}>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
+            <Button type="button" variant="secondary" onClick={() => setModal({ ...modal, open: false })} className="w-full sm:w-auto">
               {t.common.cancel}
             </Button>
-            <Button type="submit" variant="accent" disabled={modal.saving}>
+            <Button type="submit" variant="accent" disabled={modal.saving} className="w-full sm:w-auto">
               <Plus size={14} /> {t.common.save}
             </Button>
           </div>
@@ -203,9 +217,9 @@ export default function ReferenceData({ endpoint, dict, icon: Icon, addIcon: Add
 
       <Modal open={Boolean(confirmDelete)} onClose={() => setConfirmDelete(null)} title={t.common.confirm} size="sm">
         <p className="text-sm text-ink">{d.deleteConfirm}</p>
-        <div className="flex justify-end gap-2 pt-4">
-          <Button variant="secondary" onClick={() => setConfirmDelete(null)}>{t.common.cancel}</Button>
-          <Button variant="danger" onClick={handleDelete}>
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-4">
+          <Button variant="secondary" onClick={() => setConfirmDelete(null)} className="w-full sm:w-auto">{t.common.cancel}</Button>
+          <Button variant="danger" onClick={handleDelete} className="w-full sm:w-auto">
             <Trash2 size={14} /> {t.common.delete}
           </Button>
         </div>

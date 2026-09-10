@@ -70,6 +70,8 @@ export function contractStatusTone(status?: string): BadgeTone {
       return 'info';
     case 'DIANGKAT_TETAP':
       return 'info';
+    case 'RESIGN':
+      return 'neutral';
     default:
       return 'neutral';
   }
@@ -87,6 +89,8 @@ export function contractStatusKey(status?: string): string {
       return 'diperpanjang';
     case 'DIANGKAT_TETAP':
       return 'diangkatTetap';
+    case 'RESIGN':
+      return 'resign';
     default:
       return status || '';
   }

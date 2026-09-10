@@ -140,7 +140,7 @@ export default function EmployeeDetailPage() {
               </div>
               <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-ink-2">
                 <span className="flex items-center gap-1.5"><Building2 size={13} className="text-accent" /> {employee.department}</span>
-                <span className="flex items-center gap-1.5"><Briefcase size={13} className="text-accent" /> {employee.position}</span>
+                <span className="flex items-center gap-1.5"><Briefcase size={13} className="text-accent" /> {employee.position} {employee.level ? `(${employee.level})` : ''}</span>
                 <span className="flex items-center gap-1.5"><Mail size={13} className="text-accent" /> {employee.email}</span>
                 {employee.phone && (
                   <span className="flex items-center gap-1.5"><Phone size={13} className="text-accent" /> {employee.phone}</span>
@@ -189,10 +189,13 @@ export default function EmployeeDetailPage() {
               {[
                 { k: t.employees.employeeId, v: employee.nik },
                 { k: t.employees.name, v: employee.name },
+                { k: t.employees.department, v: employee.department },
+                { k: t.employees.position, v: employee.position },
+                { k: t.employees.level, v: employee.level || '-' },
+                { k: t.employees.contractType, v: t.employmentType[employee.employmentType as 'PKWT'] ?? employee.employmentType },
                 { k: t.employees.email, v: employee.email },
                 { k: t.employees.phone, v: employee.phone || '-' },
                 { k: t.employees.joinDate, v: formatDate(employee.joinDate) },
-                { k: t.employees.contractType, v: t.employmentType[employee.employmentType as 'PKWT'] ?? employee.employmentType },
               ].map((row) => (
                 <div key={row.k} className="border-b border-line pb-3 last:border-0">
                   <dt className="text-[10px] font-semibold uppercase tracking-wide text-ink-2">{row.k}</dt>

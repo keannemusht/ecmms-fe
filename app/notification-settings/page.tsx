@@ -323,7 +323,7 @@ export default function NotificationSettingsPage() {
           <p className="mt-0.5 text-xs text-ink-2">{t.notifications.logsSubtitle}</p>
         </div>
         <div className="overflow-x-auto">
-          <table className="table">
+          <table className="table min-w-[640px]">
             <thead>
               <tr>
                 <th className="th">{t.notifications.recipient}</th>

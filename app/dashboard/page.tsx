@@ -16,7 +16,7 @@ import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { useUI } from '../context/UIContext';
 import AppShell from '../components/AppShell';
-import { Card, StatCard, Badge, PageHeader, cn } from '../components/ui';
+import { Card, StatCard, Badge, PageHeader, Pagination, cn } from '../components/ui';
 import { formatDate, daysUntil } from '../lib/helpers';
 import { DashboardSummary, DashboardCharts, ChartDatum } from '../lib/types';
 import {
@@ -59,9 +59,16 @@ export default function DashboardPage() {
   const { t } = useUI();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [charts, setCharts] = useState<DashboardCharts | null>(null);
+  const PAGE_SIZE = 10;
   const [expiringDays, setExpiringDays] = useState(30);
   const [expiringContracts, setExpiringContracts] = useState<ContractRow[]>([]);
+  const [expiringPage, setExpiringPage] = useState(1);
+  const [overduePage, setOverduePage] = useState(1);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setExpiringPage(1);
+  }, [expiringDays]);
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
@@ -237,7 +244,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="overflow-x-auto min-w-full">
-          <table className="table">
+          <table className="table min-w-[640px]">
             <thead>
               <tr>
                 <th className="th">{t.contracts.employee}</th>
@@ -263,7 +270,7 @@ export default function DashboardPage() {
                   </td>
                 </tr>
               ) : (
-                expiringContracts.map((c) => {
+                expiringContracts.slice((expiringPage - 1) * PAGE_SIZE, expiringPage * PAGE_SIZE).map((c) => {
                   const diff = daysUntil(c.endDate);
                   const tone = diff !== null && diff <= 7 ? 'expired' : diff !== null && diff <= 30 ? 'warning' : 'active';
                   return (
@@ -298,6 +305,18 @@ export default function DashboardPage() {
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          page={expiringPage}
+          totalPages={Math.ceil(expiringContracts.length / PAGE_SIZE)}
+          total={expiringContracts.length}
+          pageSize={PAGE_SIZE}
+          onPage={setExpiringPage}
+          previousLabel={t.common.previous}
+          nextLabel={t.common.next}
+          pageInfoLabel={t.common.pageInfo}
+          pageOfLabel={t.common.pageOf}
+        />
       </Card>
 
       {/* Needs follow-up (overdue) */}
@@ -312,32 +331,46 @@ export default function DashboardPage() {
         {!summary || summary.overdueList.length === 0 ? (
           <div className="p-10 text-center text-xs text-ink-2">{t.dashboard.expiringTableEmpty}</div>
         ) : (
-          <div className="divide-y divide-line">
-            {summary.overdueList.map((c) => {
-              const diff = daysUntil(c.endDate);
-              return (
-                <div key={c.id} className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold text-ink">
-                      <span>{c.employee.name}</span>
-                      <span className="font-mono text-[10px] font-normal text-ink-2">({c.employee.nik})</span>
+          <>
+            <div className="divide-y divide-line">
+              {summary.overdueList.slice((overduePage - 1) * PAGE_SIZE, overduePage * PAGE_SIZE).map((c) => {
+                const diff = daysUntil(c.endDate);
+                return (
+                  <div key={c.id} className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold text-ink">
+                        <span>{c.employee.name}</span>
+                        <span className="font-mono text-[10px] font-normal text-ink-2">({c.employee.nik})</span>
+                      </div>
+                      <div className="mt-0.5 text-[11px] text-ink-2">
+                        {c.employee.department} · {formatDate(c.endDate)}
+                      </div>
                     </div>
-                    <div className="mt-0.5 text-[11px] text-ink-2">
-                      {c.employee.department} · {formatDate(c.endDate)}
+                    <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2.5 shrink-0">
+                      <Badge tone="expired">
+                        {diff === null ? '-' : `${Math.abs(diff)} ${t.dashboard.days} ${t.dashboard.overdue}`}
+                      </Badge>
+                      <Link href={`/contracts?extend=${c.id}`} className="btn btn-secondary btn-sm w-full sm:w-auto text-center justify-center">
+                        {t.dashboard.followUpAction}
+                      </Link>
                     </div>
                   </div>
-                  <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2.5 shrink-0">
-                    <Badge tone="expired">
-                      {diff === null ? '-' : `${Math.abs(diff)} ${t.dashboard.days} ${t.dashboard.overdue}`}
-                    </Badge>
-                    <Link href={`/contracts?extend=${c.id}`} className="btn btn-secondary btn-sm w-full sm:w-auto text-center justify-center">
-                      {t.dashboard.followUpAction}
-                    </Link>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+
+            <Pagination
+              page={overduePage}
+              totalPages={Math.ceil(summary.overdueList.length / PAGE_SIZE)}
+              total={summary.overdueList.length}
+              pageSize={PAGE_SIZE}
+              onPage={setOverduePage}
+              previousLabel={t.common.previous}
+              nextLabel={t.common.next}
+              pageInfoLabel={t.common.pageInfo}
+              pageOfLabel={t.common.pageOf}
+            />
+          </>
         )}
       </Card>
     </AppShell>

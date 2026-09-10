@@ -79,7 +79,7 @@ export default function AuditLogsPage() {
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="table">
+          <table className="table min-w-[640px]">
             <thead>
               <tr>
                 <th className="th">{t.audit.user}</th>

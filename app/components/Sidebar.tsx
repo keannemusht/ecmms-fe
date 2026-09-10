@@ -38,7 +38,7 @@ const navItems: NavItem[] = [
   { href: '/dashboard', labelKey: 'dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'MANAGEMENT'], match: (p) => p === '/dashboard' },
   { href: '/employees', labelKey: 'employees', icon: Users, roles: ['ADMIN', 'MANAGEMENT'], match: (p) => p.startsWith('/employees') },
   { href: '/contracts', labelKey: 'contracts', icon: FileText, roles: ['ADMIN', 'MANAGEMENT'], match: (p) => p.startsWith('/contracts') },
-  { href: '/submissions', labelKey: 'submissions', icon: FileCheck2, roles: ['ADMIN', 'MANAGEMENT', 'USER'], match: (p) => p.startsWith('/submissions') },
+  { href: '/evaluations', labelKey: 'evaluations', icon: FileCheck2, roles: ['ADMIN', 'MANAGEMENT'], match: (p) => p.startsWith('/evaluations') },
   { href: '/notifications', labelKey: 'notifications', icon: Bell, roles: ['ADMIN', 'MANAGEMENT', 'USER'], match: (p) => p.startsWith('/notifications') },
   { href: '/notification-settings', labelKey: 'notificationSettings', icon: SlidersHorizontal, roles: ['ADMIN'], match: (p) => p.startsWith('/notification-settings') },
   { href: '/reports', labelKey: 'reports', icon: BarChart3, roles: ['ADMIN', 'MANAGEMENT'], match: (p) => p.startsWith('/reports') },
@@ -46,7 +46,7 @@ const navItems: NavItem[] = [
   { href: '/positions', labelKey: 'positions', icon: BriefcaseBusiness, roles: ['ADMIN', 'MANAGEMENT'], match: (p) => p.startsWith('/positions') },
   { href: '/users', labelKey: 'users', icon: UserCog, roles: ['ADMIN'], match: (p) => p.startsWith('/users') },
   { href: '/audit-logs', labelKey: 'auditLogs', icon: ScrollText, roles: ['ADMIN'], match: (p) => p.startsWith('/audit-logs') },
-  { href: '/my-profile', labelKey: 'myProfile', icon: User, roles: ['USER'], match: (p) => p.startsWith('/my-profile') },
+  // { href: '/my-profile', labelKey: 'myProfile', icon: User, roles: ['USER'], match: (p) => p.startsWith('/my-profile') }, // Temporarily hidden
 ];
 
 export default function Sidebar() {
@@ -114,14 +114,6 @@ export default function Sidebar() {
             </div>
 
             {renderNavItems(true)}
-
-            <div className="m-3 flex items-center gap-2.5 rounded-[6px] border border-line bg-muted/60 px-3 py-2.5">
-              <ShieldCheck size={15} className="shrink-0 text-accent" />
-              <div className="min-w-0">
-                <p className="truncate text-[11px] font-semibold text-ink">{t.role[role.toLowerCase() as 'admin' | 'management' | 'user']}</p>
-                <p className="font-mono text-[9px] uppercase tracking-wider text-ink-2">{t.role.mode}</p>
-              </div>
-            </div>
           </div>
         </div>
       )}
@@ -129,11 +121,21 @@ export default function Sidebar() {
       {/* Desktop Sidebar */}
       <aside
         className={cn(
-          'hidden h-full flex-col border-r border-line bg-surface transition-all duration-200 md:flex',
+          'relative hidden h-full flex-col border-r border-line bg-surface transition-all duration-200 md:flex',
           collapsed ? 'w-16' : 'w-60'
         )}
       >
-        <div className={cn('flex h-16 items-center border-b border-line', collapsed ? 'justify-center px-2' : 'justify-between px-4')}>
+        {/* Floating Toggle Button (Slider) on Sidebar Rail */}
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="absolute -right-3 top-5 z-30 flex h-6 w-6 items-center justify-center rounded-full border border-line bg-surface text-ink-2 shadow-xs hover:border-accent hover:bg-accent-soft hover:text-accent transition-colors"
+          aria-label={collapsed ? 'Perluas sidebar' : 'Perkecil sidebar'}
+          title={collapsed ? 'Perluas sidebar' : 'Perkecil sidebar'}
+        >
+          {collapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
+        </button>
+
+        <div className={cn('flex h-16 items-center border-b border-line', collapsed ? 'justify-center' : 'px-4')}>
           <Link href="/dashboard" className="flex items-center gap-2.5 overflow-hidden">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-[6px] bg-surface">
               <Image src="/img/BATARA.png" alt="BATARA" width={32} height={32} className="h-full w-full object-contain" />
@@ -145,37 +147,9 @@ export default function Sidebar() {
               </div>
             )}
           </Link>
-          {!collapsed && (
-            <button
-              onClick={() => setCollapsed(true)}
-              className="rounded-[6px] p-1 text-ink-2 hover:bg-muted hover:text-ink"
-              aria-label="Collapse sidebar"
-            >
-              <ChevronLeft size={16} />
-            </button>
-          )}
-          {collapsed && (
-            <button
-              onClick={() => setCollapsed(false)}
-              className="rounded-[6px] p-1 text-ink-2 hover:bg-muted hover:text-ink"
-              aria-label="Expand sidebar"
-            >
-              <ChevronRight size={16} />
-            </button>
-          )}
         </div>
 
         {renderNavItems(false)}
-
-        {!collapsed && (
-          <div className="m-2 flex items-center gap-2.5 rounded-[6px] border border-line bg-muted/60 px-3 py-2.5">
-            <ShieldCheck size={15} className="shrink-0 text-accent" />
-            <div className="min-w-0">
-              <p className="truncate text-[11px] font-semibold text-ink">{t.role[role.toLowerCase() as 'admin' | 'management' | 'user']}</p>
-              <p className="font-mono text-[9px] uppercase tracking-wider text-ink-2">{t.role.mode}</p>
-            </div>
-          </div>
-        )}
       </aside>
     </>
   );

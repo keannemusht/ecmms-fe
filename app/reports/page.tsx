@@ -89,8 +89,7 @@ export default function ReportsPage() {
                 <option value="AKTIF">{t.status.aktif}</option>
                 <option value="AKAN_BERAKHIR">{t.status.akanBerakhir}</option>
                 <option value="EXPIRED">{t.status.expired}</option>
-                <option value="DIPERPANJANG">{t.status.diperpanjang}</option>
-                <option value="DIANGKAT_TETAP">{t.status.diangkatTetap}</option>
+                <option value="RESIGN">{t.status.resign}</option>
               </Select>
             </Field>
           </div>

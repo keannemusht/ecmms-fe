@@ -112,8 +112,8 @@ export default function Topbar() {
                 <p className="font-mono text-[9px] uppercase tracking-wider text-ink-2">{user?.role}</p>
               </div>
 
-              {/* Navigation link */}
-              <div className="py-1">
+              {/* Navigation link - Temporarily hidden */}
+              {/* <div className="py-1">
                 <button
                   role="menuitem"
                   onClick={goProfile}
@@ -123,8 +123,7 @@ export default function Topbar() {
                   {t.nav.myProfile}
                 </button>
               </div>
-
-              <div className="my-1 h-px bg-line" />
+              <div className="my-1 h-px bg-line" /> */}
 
               {/* Settings controls inside dropdown */}
               <div className="space-y-1.5 px-3 py-1.5">

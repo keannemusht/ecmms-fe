@@ -18,6 +18,7 @@ import {
   Field,
   Input,
   Select,
+  Pagination,
   cn,
 } from '../components/ui';
 import { formatDate, contractStatusTone, contractStatusKey, initials, avatarHue, getApiError, parseExcelDate, pickExcelValue, pickExcelJoinDate } from '../lib/helpers';
@@ -37,6 +38,8 @@ export default function EmployeesPage() {
   const [department, setDepartment] = useState('');
   const [employmentType, setEmploymentType] = useState('');
   const [loading, setLoading] = useState(true);
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
 
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Employee | null>(null);
@@ -52,8 +55,9 @@ export default function EmployeesPage() {
     name: '',
     email: '',
     phone: '',
-    department: 'Technology',
+    department: 'Produksi',
     position: '',
+    level: 'Staff',
     employmentType: 'PKWT',
     joinDate: new Date().toISOString().split('T')[0],
   });
@@ -89,6 +93,10 @@ export default function EmployeesPage() {
     fetchEmployees();
   }, [fetchEmployees]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, department, employmentType]);
+
   const openAdd = () => {
     setEditing(null);
     setFormData({
@@ -96,8 +104,9 @@ export default function EmployeesPage() {
       name: '',
       email: '',
       phone: '',
-      department: 'Technology',
-      position: '',
+      department: departments[0]?.name || 'Produksi',
+      position: positions[0]?.name || '',
+      level: 'Staff',
       employmentType: 'PKWT',
       joinDate: new Date().toISOString().split('T')[0],
     });
@@ -111,10 +120,11 @@ export default function EmployeesPage() {
     setFormData({
       nik: emp.nik,
       name: emp.name,
-      email: emp.email,
+      email: emp.email || '',
       phone: emp.phone || '',
       department: emp.department,
       position: emp.position,
+      level: emp.level || 'Staff',
       employmentType: emp.employmentType,
       joinDate: emp.joinDate.split('T')[0],
     });
@@ -159,38 +169,137 @@ export default function EmployeesPage() {
         const wb = XLSX.read(bstr, { type: 'binary', cellDates: true });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
-        const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
+        const rawRows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1 });
 
-        const formatted = data.map((row) => {
-          const rawJoinDate = pickExcelJoinDate(row);
-          const parsedJoinDate = parseExcelDate(rawJoinDate);
-          const fallbackJoinDate = rawJoinDate === '' || rawJoinDate === null || rawJoinDate === undefined
-            ? new Date().toISOString().split('T')[0]
-            : '';
-          return {
-            nik: String(pickExcelValue(row, ['NIK', 'Nik', 'No. KTP', 'ID Karyawan']) ?? ''),
-            name: String(pickExcelValue(row, ['Nama', 'Name']) ?? ''),
-            email: String(pickExcelValue(row, ['Email', 'E-mail']) ?? ''),
-            phone: String(pickExcelValue(row, ['Telepon', 'Phone', 'No. HP', 'HP']) ?? ''),
-            department: String(pickExcelValue(row, ['Departemen', 'Department', 'Divisi']) ?? 'Technology'),
-            position: String(pickExcelValue(row, ['Jabatan', 'Position', 'Posisi']) ?? 'Staff'),
-            employmentType: String(pickExcelValue(row, ['Jenis', 'Type', 'Employment Type', 'Jenis Hubungan Kerja']) ?? 'PKWT'),
-            joinDate: parsedJoinDate || fallbackJoinDate,
-            contractNumber: String(pickExcelValue(row, ['No Kontrak', 'No. Kontrak', 'Contract Number', 'Nomor Kontrak', 'Kontrak']) ?? ''),
-            contractStartDate: parseExcelDate(pickExcelValue(row, ['Tgl Mulai Kontrak', 'Tanggal Mulai Kontrak', 'Mulai Kontrak', 'Contract Start Date', 'Contract Start', 'Start Date Kontrak', 'Tgl Mulai']) ?? ''),
-            contractEndDate: parseExcelDate(pickExcelValue(row, ['Tgl Berakhir Kontrak', 'Tanggal Berakhir Kontrak', 'Berakhir Kontrak', 'Contract End Date', 'Contract End', 'End Date Kontrak', 'Tgl Berakhir']) ?? ''),
-            contractType: String(pickExcelValue(row, ['Jenis Kontrak', 'Contract Type', 'Tipe Kontrak']) ?? ''),
-            contractNotes: String(pickExcelValue(row, ['Catatan Kontrak', 'Notes', 'Keterangan']) ?? ''),
-          };
-        });
+        // Detect if this is the wide multi-stage HR format (columns with PKWT 1, PKWT 2, PKWT 3)
+        let headerRowIdx = -1;
+        for (let i = 0; i < Math.min(rawRows.length, 5); i++) {
+          const rowStr = (rawRows[i] || []).join(' ').toLowerCase();
+          if (rowStr.includes('nrp') && (rowStr.includes('nama') || rowStr.includes('karyawan'))) {
+            headerRowIdx = i;
+            break;
+          }
+        }
+
+        const formatted: Array<Record<string, unknown>> = [];
+
+        if (headerRowIdx !== -1) {
+          // Multi-column HR format
+          for (let i = headerRowIdx + 1; i < rawRows.length; i++) {
+            const r = rawRows[i] as unknown[];
+            if (!r || !r[1]) continue;
+            const nik = String(r[1]).trim();
+            const name = String(r[2] || '').trim();
+            if (!nik || !name) continue;
+
+            const position = String(r[3] || 'Staff').trim();
+            const department = String(r[4] || 'Operations').trim();
+            const joinDate = parseExcelDate(r[5]) || new Date().toISOString().split('T')[0];
+
+            const rekomendasi = String(r[17] || '').trim();
+            const statusAktif = String(r[19] || '').trim();
+            const isTetap = statusAktif.toLowerCase().includes('tetap') || rekomendasi.toLowerCase().includes('tetap');
+            const isResign = statusAktif.toLowerCase().includes('resign') || rekomendasi.toLowerCase().includes('resign');
+            const empType = isTetap ? 'PKWTT' : 'PKWT';
+
+            const contracts: Array<{ startDate: string; endDate: string; type: string; notes: string }> = [];
+            const p1Start = parseExcelDate(r[6]);
+            const p1End = parseExcelDate(r[7]);
+            if (p1Start && p1End) contracts.push({ startDate: p1Start, endDate: p1End, type: 'PKWT', notes: 'PKWT 1' });
+
+            const p2Start = parseExcelDate(r[10]);
+            const p2End = parseExcelDate(r[11]);
+            if (p2Start && p2End) contracts.push({ startDate: p2Start, endDate: p2End, type: 'PKWT', notes: 'PKWT 2' });
+
+            const p3Start = parseExcelDate(r[14]);
+            const p3End = parseExcelDate(r[15]);
+            if (p3Start && p3End) {
+              contracts.push({
+                startDate: p3Start,
+                endDate: p3End,
+                type: isTetap ? 'PKWTT' : 'PKWT',
+                notes: isTetap ? 'PKWTT / Diangkat Tetap' : 'PKWT 3 / Lanjutan',
+              });
+            }
+
+            if (isResign && contracts.length > 0) {
+              contracts[contracts.length - 1].notes += ' - Resign';
+            }
+
+            if (contracts.length === 0) {
+              formatted.push({
+                nik,
+                name,
+                email: '',
+                phone: '',
+                department,
+                position,
+                employmentType: empType,
+                joinDate,
+                contractNumber: '',
+                contractStartDate: '',
+                contractEndDate: '',
+                contractType: empType,
+                contractNotes: isResign ? 'Resign' : '',
+              });
+            } else {
+              contracts.forEach((c) => {
+                formatted.push({
+                  nik,
+                  name,
+                  email: '',
+                  phone: '',
+                  department,
+                  position,
+                  employmentType: empType,
+                  joinDate,
+                  contractNumber: '',
+                  contractStartDate: c.startDate,
+                  contractEndDate: c.endDate,
+                  contractType: c.type,
+                  contractNotes: c.notes,
+                });
+              });
+            }
+          }
+        } else {
+          // Standard flat format
+          const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
+          data.forEach((row) => {
+            const rawJoinDate = pickExcelJoinDate(row);
+            const parsedJoinDate = parseExcelDate(rawJoinDate);
+            const fallbackJoinDate = new Date().toISOString().split('T')[0];
+
+            const rawType = String(pickExcelValue(row, ['Jenis', 'Type', 'Employment Type', 'Jenis Hubungan Kerja', 'Jenis(PKWT/PKWTT/MAGANG)']) ?? 'PKWT').trim().toUpperCase();
+            const employmentType = rawType.includes('TETAP') || rawType.includes('PKWTT') ? 'PKWTT' : rawType.includes('MAGANG') ? 'MAGANG' : 'PKWT';
+
+            const status = String(pickExcelValue(row, ['Status', 'Keterangan', 'Status Tahapan Aktif']) ?? '').trim();
+
+            formatted.push({
+              nik: String(pickExcelValue(row, ['NIK', 'Nik', 'NRP', 'No. KTP', 'ID Karyawan']) ?? '').trim(),
+              name: String(pickExcelValue(row, ['Nama', 'Name', 'Nama Karyawan']) ?? '').trim(),
+              email: String(pickExcelValue(row, ['Email', 'E-mail']) ?? '').trim(),
+              phone: String(pickExcelValue(row, ['Telepon', 'Phone', 'No. HP', 'HP']) ?? '').trim(),
+              department: String(pickExcelValue(row, ['Departemen', 'Department', 'Divisi', 'Dept']) ?? 'Operations').trim(),
+              position: String(pickExcelValue(row, ['Jabatan', 'Position', 'Posisi', 'Jabatan / Posisi']) ?? 'Staff').trim(),
+              employmentType,
+              joinDate: parsedJoinDate || fallbackJoinDate,
+              contractNumber: String(pickExcelValue(row, ['No Kontrak', 'No. Kontrak', 'Contract Number', 'Nomor Kontrak', 'Kontrak']) ?? '').trim(),
+              contractStartDate: parseExcelDate(pickExcelValue(row, ['Tgl Mulai Kontrak', 'Tanggal Mulai Kontrak', 'Mulai Kontrak', 'Contract Start Date', 'Contract Start', 'Start Date Kontrak', 'Tgl Mulai'])),
+              contractEndDate: parseExcelDate(pickExcelValue(row, ['Tgl Berakhir Kontrak', 'Tanggal Berakhir Kontrak', 'Berakhir Kontrak', 'Contract End Date', 'Contract End', 'End Date Kontrak', 'Tgl Berakhir', 'Tgl Akhir'])),
+              contractType: employmentType,
+              contractNotes: status || '',
+            });
+          });
+        }
 
         const res = await api.post('/employees/bulk-import', { employees: formatted });
         toast.success(res.data.message);
         setShowImportModal(false);
         setImportFile(null);
         fetchEmployees();
-      } catch {
-        toast.error(t.common.error);
+      } catch (err) {
+        toast.error(getApiError(err) || t.common.error);
       } finally {
         setImporting(false);
       }
@@ -268,7 +377,7 @@ export default function EmployeesPage() {
       {/* Table */}
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="table">
+          <table className="table min-w-[800px]">
             <thead>
               <tr>
                 <th className="th">{t.employees.employeeId}</th>
@@ -291,7 +400,7 @@ export default function EmployeesPage() {
                   <td className="td py-10 text-center text-xs text-ink-2" colSpan={8}>{t.employees.noData}</td>
                 </tr>
               ) : (
-                employees.map((emp) => {
+                employees.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((emp) => {
                   const contractHistory = (emp.contracts || []).slice().sort((a, b) => a.sequence - b.sequence);
                   const activeContract =
                     contractHistory.find((c) => c.status === 'AKTIF' || c.status === 'AKAN_BERAKHIR') ||
@@ -318,8 +427,15 @@ export default function EmployeesPage() {
                         <div className="text-[11px] text-ink-2">{emp.email}</div>
                       </td>
                       <td className="td">
-                        <div className="text-xs">{emp.department}</div>
-                        <div className="text-[11px] text-ink-2">{emp.position}</div>
+                        <div className="text-xs font-medium text-ink">{emp.department}</div>
+                        <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-[11px] text-ink-2">
+                          <span>{emp.position}</span>
+                          {emp.level && (
+                            <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-semibold text-ink-2 border border-border">
+                              {emp.level}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="td">
                         <Badge tone={emp.employmentType === 'PKWTT' ? 'active' : emp.employmentType === 'PKWT' ? 'info' : 'neutral'}>
@@ -336,8 +452,8 @@ export default function EmployeesPage() {
                                   'rounded-[4px] px-1.5 py-0.5 text-[10px] font-bold',
                                   c.status === 'DIPERPANJANG'
                                     ? 'bg-warning/10 text-warning'
-                                    : c.status === 'DIANGKAT_TETAP'
-                                      ? 'bg-active/10 text-active'
+                                    : c.status === 'RESIGN'
+                                      ? 'bg-stone-500/10 text-stone-600 dark:text-stone-400'
                                       : 'bg-accent-soft text-accent'
                                 )}
                                 title={`${c.contractNumber} · ${formatDate(c.startDate)} — ${formatDate(c.endDate)}`}
@@ -395,6 +511,18 @@ export default function EmployeesPage() {
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          page={page}
+          totalPages={Math.ceil(employees.length / PAGE_SIZE)}
+          total={employees.length}
+          pageSize={PAGE_SIZE}
+          onPage={setPage}
+          previousLabel={t.common.previous}
+          nextLabel={t.common.next}
+          pageInfoLabel={t.common.pageInfo}
+          pageOfLabel={t.common.pageOf}
+        />
       </Card>
 
       {/* Add / Edit Employee Modal */}
@@ -436,14 +564,23 @@ export default function EmployeesPage() {
               </Select>
             </Field>
             <Field label={t.employees.position} required>
-              <Select value={formData.position} onChange={set('position')}>
-                {positions.filter((p) => p.isActive).map((p) => (
-                  <option key={p.id} value={p.name}>{p.name}</option>
-                ))}
-              </Select>
+              <Input
+                value={formData.position}
+                onChange={set('position')}
+                placeholder="Masukkan jabatan..."
+                required
+              />
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
+            <Field label={t.employees.level} required>
+              <Select value={formData.level} onChange={set('level')}>
+                <option value="Director">Director</option>
+                <option value="Manager">Manager</option>
+                <option value="Staff">Staff</option>
+                <option value="Non-Staff">Non-Staff</option>
+              </Select>
+            </Field>
             <Field label={t.employees.contractType} required>
               <Select value={formData.employmentType} onChange={set('employmentType')}>
                 <option value="PKWT">{t.employmentType.PKWT}</option>
@@ -451,13 +588,15 @@ export default function EmployeesPage() {
                 <option value="MAGANG">{t.employmentType.MAGANG}</option>
               </Select>
             </Field>
+          </div>
+          <div>
             <Field label={t.employees.joinDate} required>
               <Input type="date" value={formData.joinDate} onChange={set('joinDate')} required />
             </Field>
           </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setShowModal(false)}>{t.common.cancel}</Button>
-            <Button type="submit" variant="primary">{t.common.save}</Button>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
+            <Button type="button" variant="secondary" onClick={() => setShowModal(false)} className="w-full sm:w-auto">{t.common.cancel}</Button>
+            <Button type="submit" variant="primary" className="w-full sm:w-auto">{t.common.save}</Button>
           </div>
         </form>
       </Modal>
@@ -494,10 +633,11 @@ export default function EmployeesPage() {
             {importFile ? importFile.name : t.employees.chooseFile}
           </button>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
             <Button
               type="button"
               variant="secondary"
+              className="w-full sm:w-auto"
               onClick={() => {
                 setShowImportModal(false);
                 setImportFile(null);
@@ -505,7 +645,7 @@ export default function EmployeesPage() {
             >
               {t.common.cancel}
             </Button>
-            <Button type="button" variant="primary" onClick={handleImportSubmit} disabled={!importFile || importing}>
+            <Button type="button" variant="primary" onClick={handleImportSubmit} disabled={!importFile || importing} className="w-full sm:w-auto">
               <Upload size={14} /> {importing ? t.common.loading : t.employees.importBtn}
             </Button>
           </div>

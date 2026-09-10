@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lock, Mail, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Lock, Mail, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useUI } from '../context/UIContext';
 import { Button, Input, Field, cn } from '../components/ui';
@@ -63,21 +63,6 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await login(email, password);
-      redirectAfterLogin();
-    } catch (err) {
-      setError(getApiError(err));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const quickLogin = async (demoEmail: string, demoPass: string) => {
-    setEmail(demoEmail);
-    setPassword(demoPass);
-    setError('');
-    setIsLoading(true);
-    try {
-      await login(demoEmail, demoPass);
       redirectAfterLogin();
     } catch (err) {
       setError(getApiError(err));
@@ -187,21 +172,6 @@ export default function LoginPage() {
                 <ArrowRight size={15} />
               </Button>
             </form>
-
-            <div className="mt-8 border-t border-line pt-6">
-              <p className="mb-3 text-center text-[11px] font-semibold uppercase tracking-wide text-ink-2">
-                {t.login.quickLogin}
-              </p>
-              <button
-                type="button"
-                onClick={() => quickLogin('admin@bataramining.com', '@Batara2026')}
-                disabled={isLoading}
-                className="flex w-full items-center justify-center gap-2 rounded-[6px] border border-line bg-base px-2 py-2.5 text-[11px] font-semibold text-ink-2 transition-colors hover:border-accent hover:bg-accent-soft hover:text-ink disabled:opacity-50"
-              >
-                <ShieldCheck size={15} className="text-accent" />
-                {t.login.roleAdmin} · admin@bataramining.com
-              </button>
-            </div>
           </div>
           <p className="mt-4 text-center font-mono text-[10px] uppercase tracking-widest text-ink-2 lg:hidden">
             {t.appName} · v2.0

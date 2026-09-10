@@ -52,7 +52,7 @@ const emptyForm: RuleForm = {
 };
 
 export default function NotificationSettingsPage() {
-  const { t } = useUI();
+  const { t, lang } = useUI();
   const toast = useToast();
   const [rules, setRules] = useState<NotificationRule[]>([]);
   const [logs, setLogs] = useState<NotificationLog[]>([]);
@@ -257,7 +257,7 @@ export default function NotificationSettingsPage() {
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <span className="text-xs font-bold text-ink">{r.name}</span>
                     <Badge tone={r.isActive ? 'active' : 'neutral'}>
-                      {t.notifications.isActive}
+                      {r.isActive ? t.notifications.isActive : t.notifications.isInactive}
                     </Badge>
                   </div>
                   <div className="mb-3 flex flex-wrap items-center gap-1.5">
@@ -290,11 +290,11 @@ export default function NotificationSettingsPage() {
                       onClick={() => toggleActive(r)}
                       className={cn(
                         'btn btn-ghost btn-sm',
-                        r.isActive ? 'text-active' : 'text-ink-2'
+                        r.isActive ? 'text-active hover:text-active/80' : 'text-ink-2 hover:text-ink'
                       )}
-                      title={t.common.status}
+                      title={r.isActive ? (lang === 'en' ? 'Click to deactivate' : 'Klik untuk nonaktifkan') : (lang === 'en' ? 'Click to activate' : 'Klik untuk aktifkan')}
                     >
-                      <Power size={13} /> {r.isActive ? t.status.aktif : t.status.expired}
+                      <Power size={13} /> {r.isActive ? t.notifications.isActive : t.notifications.isInactive}
                     </button>
                     <Button size="sm" variant="secondary" onClick={() => openEdit(r)}>
                       <Pencil size={12} /> {t.common.edit}

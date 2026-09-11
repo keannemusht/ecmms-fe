@@ -960,8 +960,8 @@ export default function EvaluationsPage() {
   // When an employee is selected in form
   const handleSelectEmployee = (emp: Employee) => {
     setSelectedEmployeeId(emp.id);
-    const lvl = (emp.level || '').toLowerCase();
-    const isStaffLevel = lvl.includes('staff') || lvl.includes('manager') || lvl.includes('director');
+    const lvl = (emp.level || '').toLowerCase().trim();
+    const isStaffLevel = lvl !== 'non-staff' && (lvl === 'staff' || lvl === 'manager' || lvl === 'director');
     setIsStaff(isStaffLevel);
     setEmpComboboxOpen(false);
   };

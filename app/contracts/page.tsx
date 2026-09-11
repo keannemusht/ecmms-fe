@@ -73,7 +73,7 @@ export default function ContractsPage() {
 
   // Sorting & Date Filter State
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [sortBy, setSortBy] = useState<'endDate' | 'startDate' | 'contractNumber' | 'employeeName' | 'sequence' | 'status'>('endDate');
+  const [sortBy, setSortBy] = useState<'endDate' | 'startDate' | 'contractNumber' | 'employeeName' | 'sequence' | 'status'>('employeeName');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [dateType, setDateType] = useState<'endDate' | 'startDate'>('endDate');
   const [dateFrom, setDateFrom] = useState('');
@@ -125,14 +125,14 @@ export default function ContractsPage() {
   const activeDateSortCount = useMemo(() => {
     let count = 0;
     if (dateFrom || dateTo) count += 1;
-    if (sortBy !== 'endDate' || sortOrder !== 'asc') count += 1;
+    if (sortBy !== 'employeeName' || sortOrder !== 'asc') count += 1;
     return count;
   }, [dateFrom, dateTo, sortBy, sortOrder]);
 
   const resetFilters = () => {
     setDateFrom('');
     setDateTo('');
-    setSortBy('endDate');
+    setSortBy('employeeName');
     setSortOrder('asc');
     setDateType('endDate');
   };
@@ -296,7 +296,7 @@ export default function ContractsPage() {
     setFormError('');
     setFormSuccess('');
     try {
-      const finalContractNumber = extendData.newContractNumber.trim() || suggestedNewContractNumber;
+      const finalContractNumber = extendData.newContractNumber.trim() || undefined;
       const payload = {
         ...extendData,
         newContractNumber: finalContractNumber,
@@ -891,11 +891,17 @@ export default function ContractsPage() {
                     </td>
                     <td className="td text-xs">{formatDate(c.startDate)}</td>
                     <td className="td text-xs">
-                      {formatDate(c.endDate)}
-                      {c.status === 'AKAN_BERAKHIR' && daysUntil(c.endDate) !== null && daysUntil(c.endDate)! <= 30 && (
-                        <div className="mt-0.5 text-[10px] font-semibold text-warning">
-                          {daysUntil(c.endDate)} {t.dashboard.days}
-                        </div>
+                      {c.contractType === 'PKWTT' || new Date(c.endDate).getFullYear() >= 2099 ? (
+                        <span className="font-semibold text-accent">Tetap</span>
+                      ) : (
+                        <>
+                          {formatDate(c.endDate)}
+                          {c.status === 'AKAN_BERAKHIR' && daysUntil(c.endDate) !== null && daysUntil(c.endDate)! <= 30 && (
+                            <div className="mt-0.5 text-[10px] font-semibold text-warning">
+                              {daysUntil(c.endDate)} {t.dashboard.days}
+                            </div>
+                          )}
+                        </>
                       )}
                     </td>
                     <td className="td">
@@ -975,8 +981,8 @@ export default function ContractsPage() {
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
-            <Field label={t.contracts.contractNoLabel} required>
-              <Input value={newContractData.contractNumber} onChange={setNew('contractNumber')} placeholder="PKWT/2026/TECH/001" required />
+            <Field label={t.contracts.contractNoLabel}>
+              <Input value={newContractData.contractNumber} onChange={setNew('contractNumber')} placeholder="PKWT/2026/TECH/001 (Opsional)" />
             </Field>
             <Field label={t.contracts.typeLabel} required>
               <Select value={newContractData.contractType} onChange={setNew('contractType')}>
@@ -1145,11 +1151,11 @@ export default function ContractsPage() {
 
           {extendData.actionType === 'PERPANJANG_PKWT' ? (
             <>
-              <Field label={t.contracts.newContractNo} required>
+              <Field label={t.contracts.newContractNo}>
                 <Input
                   value={extendData.newContractNumber}
                   onChange={setExt('newContractNumber')}
-                  placeholder={suggestedNewContractNumber}
+                  placeholder={`${suggestedNewContractNumber} (Opsional)`}
                 />
               </Field>
               <div className="grid grid-cols-2 gap-3">
@@ -1244,12 +1250,11 @@ export default function ContractsPage() {
         {formSuccess && <div className="mb-4 rounded-[6px] border border-active/30 bg-active/10 p-3 text-xs text-active">{formSuccess}</div>}
         <form onSubmit={handleEditContract} className="space-y-3.5">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label={t.contracts.contractNoLabel} required>
+            <Field label={t.contracts.contractNoLabel}>
               <Input
                 value={editData.contractNumber}
                 onChange={setEdit('contractNumber')}
-                placeholder="PKWT/2026/..."
-                required
+                placeholder="PKWT/2026/... (Opsional)"
               />
             </Field>
             <Field label={t.contracts.sequence} hint={t.contracts.sequenceHint}>
@@ -1339,8 +1344,14 @@ export default function ContractsPage() {
               </div>
               <div>
                 <div className="text-[10px] font-semibold uppercase tracking-wide text-ink-2">{t.contracts.dateEndLabel}</div>
-                <div className="text-sm font-semibold text-ink">{formatDate(selectedContract.endDate)}</div>
-                {selectedContract.status === 'AKAN_BERAKHIR' && daysUntil(selectedContract.endDate) !== null && daysUntil(selectedContract.endDate)! <= 30 && (
+                <div className="text-sm font-semibold text-ink">
+                  {selectedContract.contractType === 'PKWTT' || new Date(selectedContract.endDate).getFullYear() >= 2099 ? (
+                    <span className="text-accent">Tetap</span>
+                  ) : (
+                    formatDate(selectedContract.endDate)
+                  )}
+                </div>
+                {selectedContract.contractType !== 'PKWTT' && selectedContract.status === 'AKAN_BERAKHIR' && daysUntil(selectedContract.endDate) !== null && daysUntil(selectedContract.endDate)! <= 30 && (
                   <div className="mt-0.5 text-[10px] font-semibold text-warning">
                     {daysUntil(selectedContract.endDate)} {t.dashboard.days}
                   </div>
@@ -1372,7 +1383,7 @@ export default function ContractsPage() {
       {/* Delete confirm modal */}
       <Modal open={Boolean(confirmDelete)} onClose={() => setConfirmDelete(null)} title={t.common.confirm} size="sm">
         <p className="text-sm text-ink">
-          {t.contracts.deleteConfirm} {confirmDelete?.contractNumber}
+          {t.contracts.deleteConfirm} {confirmDelete?.contractNumber || confirmDelete?.employee?.name || '-'}
         </p>
         <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-4">
           <Button variant="secondary" onClick={() => setConfirmDelete(null)} className="w-full sm:w-auto">{t.common.cancel}</Button>

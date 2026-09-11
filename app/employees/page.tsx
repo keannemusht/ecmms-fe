@@ -1,8 +1,22 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Upload, Search, Trash2, FileSpreadsheet, Pencil } from 'lucide-react';
+import {
+  Plus,
+  Upload,
+  Search,
+  Trash2,
+  FileSpreadsheet,
+  Pencil,
+  ArrowUp,
+  ArrowDown,
+  SlidersHorizontal,
+  ArrowUpDown,
+  Calendar,
+  RotateCcw,
+  X,
+} from 'lucide-react';
 import * as XLSX from 'xlsx';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
@@ -21,9 +35,18 @@ import {
   Pagination,
   cn,
 } from '../components/ui';
-import { formatDate, contractStatusTone, contractStatusKey, initials, avatarHue, getApiError, parseExcelDate, pickExcelValue, pickExcelJoinDate } from '../lib/helpers';
+import { formatDate, contractStatusTone, contractStatusKey, initials, avatarHue, getApiError, parseExcelDate, pickExcelValue, pickExcelJoinDate, toISODate } from '../lib/helpers';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
 import { Employee, ReferenceItem } from '../lib/types';
+import { determineEmployeeLevel } from '../lib/employeeLevel';
+
+const STATUS_FILTERS = [
+  { labelKey: 'allStatus', value: '' },
+  { labelKey: 'aktif', value: 'AKTIF' },
+  { labelKey: 'akanBerakhir', value: 'AKAN_BERAKHIR' },
+  { labelKey: 'expired', value: 'EXPIRED' },
+  { labelKey: 'resign', value: 'RESIGN' },
+];
 
 export default function EmployeesPage() {
   const { user } = useAuth();
@@ -37,6 +60,12 @@ export default function EmployeesPage() {
   const debouncedSearch = useDebouncedValue(search);
   const [department, setDepartment] = useState('');
   const [employmentType, setEmploymentType] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<'name' | 'nik' | 'department' | 'joinDate'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [loading, setLoading] = useState(true);
   const PAGE_SIZE = 10;
   const [page, setPage] = useState(1);
@@ -73,6 +102,42 @@ export default function EmployeesPage() {
     api.get('/positions').then((res) => setPositions(res.data || [])).catch(() => {});
   }, []);
 
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (department) count += 1;
+    if (employmentType) count += 1;
+    if (statusFilter) count += 1;
+    if (dateFrom || dateTo) count += 1;
+    if (sortBy !== 'name' || sortOrder !== 'asc') count += 1;
+    return count;
+  }, [department, employmentType, statusFilter, dateFrom, dateTo, sortBy, sortOrder]);
+
+  const resetFilters = () => {
+    setSearch('');
+    setDepartment('');
+    setEmploymentType('');
+    setStatusFilter('');
+    setDateFrom('');
+    setDateTo('');
+    setSortBy('name');
+    setSortOrder('asc');
+  };
+
+  const applyPreset = (preset: 'thisMonth' | 'thisYear') => {
+    const now = new Date();
+    if (preset === 'thisMonth') {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      setDateFrom(toISODate(start));
+      setDateTo(toISODate(end));
+    } else if (preset === 'thisYear') {
+      const start = new Date(now.getFullYear(), 0, 1);
+      const end = new Date(now.getFullYear(), 11, 31);
+      setDateFrom(toISODate(start));
+      setDateTo(toISODate(end));
+    }
+  };
+
   const fetchEmployees = useCallback(async () => {
     try {
       setLoading(true);
@@ -80,6 +145,11 @@ export default function EmployeesPage() {
       if (debouncedSearch) params.append('search', debouncedSearch);
       if (department) params.append('department', department);
       if (employmentType) params.append('employmentType', employmentType);
+      if (statusFilter) params.append('status', statusFilter);
+      if (dateFrom) params.append('dateFrom', dateFrom);
+      if (dateTo) params.append('dateTo', dateTo);
+      if (sortBy) params.append('sortBy', sortBy);
+      if (sortOrder) params.append('sortOrder', sortOrder);
       const res = await api.get(`/employees?${params.toString()}`);
       setEmployees(res.data.employees || []);
     } catch (err) {
@@ -87,7 +157,57 @@ export default function EmployeesPage() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, department, employmentType]);
+  }, [debouncedSearch, department, employmentType, statusFilter, dateFrom, dateTo, sortBy, sortOrder]);
+
+  const displayEmployees = useMemo(() => {
+    let list = [...employees];
+
+    // Status filter safeguard
+    if (statusFilter) {
+      list = list.filter((emp) => {
+        const contractHistory = (emp.contracts || []).slice().sort((a, b) => a.sequence - b.sequence);
+        const activeContract =
+          contractHistory.find((c) => c.status === 'AKTIF' || c.status === 'AKAN_BERAKHIR') ||
+          contractHistory[contractHistory.length - 1];
+        return activeContract?.status === statusFilter;
+      });
+    }
+
+    // Date range safeguard (joinDate)
+    if (dateFrom || dateTo) {
+      list = list.filter((emp) => {
+        if (!emp.joinDate) return false;
+        const d = toISODate(new Date(emp.joinDate));
+        if (dateFrom && d < dateFrom) return false;
+        if (dateTo && d > dateTo) return false;
+        return true;
+      });
+    }
+
+    list.sort((a, b) => {
+      let comp = 0;
+      if (sortBy === 'name') {
+        comp = (a.name || '').localeCompare(b.name || '');
+      } else if (sortBy === 'nik') {
+        comp = (a.nik || '').localeCompare(b.nik || '');
+      } else if (sortBy === 'department') {
+        comp = (a.department || '').localeCompare(b.department || '');
+      } else if (sortBy === 'joinDate') {
+        comp = new Date(a.joinDate).getTime() - new Date(b.joinDate).getTime();
+      }
+      return sortOrder === 'desc' ? -comp : comp;
+    });
+    return list;
+  }, [employees, statusFilter, dateFrom, dateTo, sortBy, sortOrder]);
+
+  const handleSortHeader = (col: 'name' | 'nik' | 'department' | 'joinDate') => {
+    if (sortBy === col) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(col);
+      setSortOrder('asc');
+    }
+  };
 
   useEffect(() => {
     fetchEmployees();
@@ -95,18 +215,19 @@ export default function EmployeesPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, department, employmentType]);
+  }, [debouncedSearch, department, employmentType, statusFilter, dateFrom, dateTo, sortBy, sortOrder]);
 
   const openAdd = () => {
     setEditing(null);
+    const initialPos = positions[0]?.name || '';
     setFormData({
       nik: '',
       name: '',
       email: '',
       phone: '',
       department: departments[0]?.name || 'Produksi',
-      position: positions[0]?.name || '',
-      level: 'Staff',
+      position: initialPos,
+      level: determineEmployeeLevel(initialPos),
       employmentType: 'PKWT',
       joinDate: new Date().toISOString().split('T')[0],
     });
@@ -124,7 +245,7 @@ export default function EmployeesPage() {
       phone: emp.phone || '',
       department: emp.department,
       position: emp.position,
-      level: emp.level || 'Staff',
+      level: emp.level || determineEmployeeLevel(emp.position),
       employmentType: emp.employmentType,
       joinDate: emp.joinDate.split('T')[0],
     });
@@ -271,9 +392,14 @@ export default function EmployeesPage() {
             const fallbackJoinDate = new Date().toISOString().split('T')[0];
 
             const rawType = String(pickExcelValue(row, ['Jenis', 'Type', 'Employment Type', 'Jenis Hubungan Kerja', 'Jenis(PKWT/PKWTT/MAGANG)']) ?? 'PKWT').trim().toUpperCase();
-            const employmentType = rawType.includes('TETAP') || rawType.includes('PKWTT') ? 'PKWTT' : rawType.includes('MAGANG') ? 'MAGANG' : 'PKWT';
-
             const status = String(pickExcelValue(row, ['Status', 'Keterangan', 'Status Tahapan Aktif']) ?? '').trim();
+            const isTetap = rawType.includes('TETAP') || rawType.includes('PKWTT') ||
+                            status.toLowerCase().includes('tetap') || status.toLowerCase().includes('pkwtt');
+            const employmentType = isTetap ? 'PKWTT' : rawType.includes('MAGANG') ? 'MAGANG' : 'PKWT';
+
+            const excelLevel = String(pickExcelValue(row, ['Level', 'Golongan', 'Grade', 'Jenjang', 'Level Karyawan']) ?? '').trim();
+            const pos = String(pickExcelValue(row, ['Jabatan', 'Position', 'Posisi', 'Jabatan / Posisi']) ?? 'Staff').trim();
+            const level = excelLevel || determineEmployeeLevel(pos);
 
             formatted.push({
               nik: String(pickExcelValue(row, ['NIK', 'Nik', 'NRP', 'No. KTP', 'ID Karyawan']) ?? '').trim(),
@@ -281,7 +407,8 @@ export default function EmployeesPage() {
               email: String(pickExcelValue(row, ['Email', 'E-mail']) ?? '').trim(),
               phone: String(pickExcelValue(row, ['Telepon', 'Phone', 'No. HP', 'HP']) ?? '').trim(),
               department: String(pickExcelValue(row, ['Departemen', 'Department', 'Divisi', 'Dept']) ?? 'Operations').trim(),
-              position: String(pickExcelValue(row, ['Jabatan', 'Position', 'Posisi', 'Jabatan / Posisi']) ?? 'Staff').trim(),
+              position: pos,
+              level,
               employmentType,
               joinDate: parsedJoinDate || fallbackJoinDate,
               contractNumber: String(pickExcelValue(row, ['No Kontrak', 'No. Kontrak', 'Contract Number', 'Nomor Kontrak', 'Kontrak']) ?? '').trim(),
@@ -323,8 +450,15 @@ export default function EmployeesPage() {
     }
   };
 
-  const set = (k: keyof typeof formData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-    setFormData({ ...formData, [k]: e.target.value });
+  const set = (k: keyof typeof formData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const val = e.target.value;
+    if (k === 'position') {
+      const suggestedLevel = determineEmployeeLevel(val);
+      setFormData((prev) => ({ ...prev, position: val, level: suggestedLevel }));
+    } else {
+      setFormData((prev) => ({ ...prev, [k]: val }));
+    }
+  };
 
   return (
     <AppShell>
@@ -346,32 +480,286 @@ export default function EmployeesPage() {
       />
 
       {/* Filters */}
+      {/* Filters & Actions Bar */}
       <Card className="mb-4 p-3">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center">
-          <div className="relative w-full md:w-80">
-            <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-2" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t.employees.searchPlaceholder}
-              className="pl-9"
-            />
-          </div>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-1 flex-wrap items-center gap-2">
-            <Select value={department} onChange={(e) => setDepartment(e.target.value)} className="w-full sm:w-44">
-              <option value="">{t.common.allDepartment}</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.name}>{d.name}</option>
-              ))}
-            </Select>
-            <Select value={employmentType} onChange={(e) => setEmploymentType(e.target.value)} className="w-full sm:w-40">
-              <option value="">{t.common.allType}</option>
-              <option value="PKWT">{t.employmentType.PKWT}</option>
-              <option value="PKWTT">{t.employmentType.PKWTT}</option>
-              <option value="MAGANG">{t.employmentType.MAGANG}</option>
-            </Select>
+            <div className="relative w-full sm:w-72">
+              <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-2" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t.employees.searchPlaceholder}
+                className="pl-9"
+              />
+            </div>
+
+            {/* Filter Drawer Button */}
+            <Button
+              type="button"
+              variant={isFilterOpen || activeFilterCount > 0 ? 'accent' : 'secondary'}
+              size="sm"
+              onClick={() => setIsFilterOpen(!isFilterOpen)}
+              className="gap-1.5 shrink-0"
+              title={t.contracts.filterAndSort}
+            >
+              <SlidersHorizontal size={14} />
+              <span>{t.contracts.filterBtn}</span>
+              {activeFilterCount > 0 && (
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] font-bold text-accent dark:bg-ink dark:text-accent">
+                  {activeFilterCount}
+                </span>
+              )}
+            </Button>
+
+            {/* Quick Ascending / Descending Button */}
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+              className="gap-1.5 shrink-0 font-medium"
+              title={`${t.contracts.sortOrder}: ${sortOrder === 'asc' ? t.contracts.ascending : t.contracts.descending}`}
+            >
+              {sortOrder === 'asc' ? (
+                <>
+                  <ArrowUp size={14} className="text-accent" />
+                  <span className="text-xs">{t.contracts.ascending}</span>
+                </>
+              ) : (
+                <>
+                  <ArrowDown size={14} className="text-accent" />
+                  <span className="text-xs">{t.contracts.descending}</span>
+                </>
+              )}
+            </Button>
+
+            {/* Reset Filter Button */}
+            {(activeFilterCount > 0 || search || department || employmentType || statusFilter || dateFrom || dateTo) && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={resetFilters}
+                className="gap-1 text-xs text-ink-2 hover:text-expired"
+                title={t.contracts.resetFilter}
+              >
+                <RotateCcw size={12} />
+                <span className="hidden sm:inline">{t.contracts.resetFilter}</span>
+              </Button>
+            )}
+          </div>
+
+          {/* Status Filter Tabs */}
+          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+            {STATUS_FILTERS.map((st) => (
+              <button
+                key={st.value}
+                onClick={() => setStatusFilter(st.value)}
+                className={cn(
+                  'rounded-[4px] px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                  statusFilter === st.value
+                    ? 'bg-accent text-white dark:text-ink shadow-xs'
+                    : 'bg-muted text-ink-2 hover:text-ink'
+                )}
+              >
+                {t.status[st.labelKey as 'aktif'] ?? t.common.all}
+              </button>
+            ))}
           </div>
         </div>
+
+        {/* Expandable Filter & Sort Drawer / Panel */}
+        {isFilterOpen && (
+          <div className="mt-3.5 border-t border-line pt-3.5 animate-in fade-in duration-200">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+              {/* Kolom 1: Urutkan Berdasarkan & Arah */}
+              <div className="space-y-2 lg:col-span-4 rounded-[6px] border border-line/60 bg-muted/20 p-3">
+                <span className="text-xs font-bold text-ink flex items-center gap-1.5">
+                  <ArrowUpDown size={13} className="text-accent" />
+                  {t.contracts.sortBy}
+                </span>
+
+                <div className="grid grid-cols-1 gap-2">
+                  <Select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="text-xs"
+                  >
+                    <option value="name">{t.employees.name} (A-Z)</option>
+                    <option value="nik">{t.employees.employeeId}</option>
+                    <option value="department">{t.employees.department}</option>
+                    <option value="joinDate">{t.employees.joinDate}</option>
+                  </Select>
+
+                  <div className="flex items-center gap-1.5 pt-1">
+                    <span className="text-[11px] text-ink-2 shrink-0">{t.contracts.sortOrder}:</span>
+                    <div className="grid grid-cols-2 gap-1.5 w-full">
+                      <button
+                        type="button"
+                        onClick={() => setSortOrder('asc')}
+                        className={cn(
+                          'flex items-center justify-center gap-1.5 rounded-[4px] border py-1 px-2 text-xs font-semibold transition-all',
+                          sortOrder === 'asc'
+                            ? 'border-accent bg-accent/15 text-accent shadow-xs'
+                            : 'border-line bg-surface text-ink-2 hover:text-ink'
+                        )}
+                      >
+                        <ArrowUp size={13} />
+                        <span>{t.contracts.ascending}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSortOrder('desc')}
+                        className={cn(
+                          'flex items-center justify-center gap-1.5 rounded-[4px] border py-1 px-2 text-xs font-semibold transition-all',
+                          sortOrder === 'desc'
+                            ? 'border-accent bg-accent/15 text-accent shadow-xs'
+                            : 'border-line bg-surface text-ink-2 hover:text-ink'
+                        )}
+                      >
+                        <ArrowDown size={13} />
+                        <span>{t.contracts.descending}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Kolom 2: Departemen & Jenis Hubungan Kerja */}
+              <div className="space-y-2 lg:col-span-4 rounded-[6px] border border-line/60 bg-muted/20 p-3">
+                <span className="text-xs font-bold text-ink flex items-center gap-1.5">
+                  <SlidersHorizontal size={13} className="text-accent" />
+                  Kategori Karyawan
+                </span>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
+                  <Field label={t.employees.department}>
+                    <Select value={department} onChange={(e) => setDepartment(e.target.value)} className="text-xs h-9">
+                      <option value="">{t.common.allDepartment}</option>
+                      {departments.map((d) => (
+                        <option key={d.id} value={d.name}>{d.name}</option>
+                      ))}
+                    </Select>
+                  </Field>
+                  <Field label={t.employees.contractType}>
+                    <Select value={employmentType} onChange={(e) => setEmploymentType(e.target.value)} className="text-xs h-9">
+                      <option value="">{t.common.allType}</option>
+                      <option value="PKWT">{t.employmentType.PKWT}</option>
+                      <option value="PKWTT">{t.employmentType.PKWTT}</option>
+                      <option value="MAGANG">{t.employmentType.MAGANG}</option>
+                    </Select>
+                  </Field>
+                </div>
+              </div>
+
+              {/* Kolom 3: Filter Tanggal Bergabung */}
+              <div className="space-y-2 lg:col-span-4 rounded-[6px] border border-line/60 bg-muted/20 p-3">
+                <span className="text-xs font-bold text-ink flex items-center gap-1.5">
+                  <Calendar size={13} className="text-accent" />
+                  {t.employees.joinDate}
+                </span>
+
+                <div className="grid grid-cols-2 gap-2 pt-0.5">
+                  <Field label={t.contracts.dateFrom}>
+                    <Input
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => setDateFrom(e.target.value)}
+                      className="text-xs h-9"
+                    />
+                  </Field>
+                  <Field label={t.contracts.dateTo}>
+                    <Input
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => setDateTo(e.target.value)}
+                      className="text-xs h-9"
+                    />
+                  </Field>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="flex flex-wrap items-center gap-1 pt-1 text-[11px]">
+                  <span className="text-ink-2 font-medium mr-1">{t.contracts.quickPresets}:</span>
+                  <button
+                    type="button"
+                    onClick={() => applyPreset('thisMonth')}
+                    className="rounded-[4px] border border-line bg-surface px-2 py-0.5 text-ink hover:border-accent hover:text-accent transition-colors"
+                  >
+                    {t.contracts.thisMonth}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPreset('thisYear')}
+                    className="rounded-[4px] border border-line bg-surface px-2 py-0.5 text-ink hover:border-accent hover:text-accent transition-colors"
+                  >
+                    {t.contracts.thisYear}
+                  </button>
+                  {(dateFrom || dateTo) && (
+                    <button
+                      type="button"
+                      onClick={() => { setDateFrom(''); setDateTo(''); }}
+                      className="rounded-[4px] bg-expired/10 text-expired px-2 py-0.5 font-medium hover:bg-expired/20 transition-colors"
+                    >
+                      {t.contracts.allDates}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Active Filter Chips & Close Button */}
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line/50 pt-2 text-xs">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {department && (
+                  <span className="inline-flex items-center gap-1 rounded-[4px] bg-accent/10 px-2 py-1 text-[11px] font-medium text-accent">
+                    Dept: {department}
+                    <button type="button" onClick={() => setDepartment('')} className="ml-1 hover:text-expired"><X size={12} /></button>
+                  </span>
+                )}
+                {employmentType && (
+                  <span className="inline-flex items-center gap-1 rounded-[4px] bg-accent/10 px-2 py-1 text-[11px] font-medium text-accent">
+                    Jenis: {employmentType}
+                    <button type="button" onClick={() => setEmploymentType('')} className="ml-1 hover:text-expired"><X size={12} /></button>
+                  </span>
+                )}
+                {(dateFrom || dateTo) && (
+                  <span className="inline-flex items-center gap-1 rounded-[4px] bg-accent/10 px-2 py-1 text-[11px] font-medium text-accent">
+                    <Calendar size={12} />
+                    Join: {dateFrom || '...'} s/d {dateTo || '...'}
+                    <button type="button" onClick={() => { setDateFrom(''); setDateTo(''); }} className="ml-1 hover:text-expired"><X size={12} /></button>
+                  </span>
+                )}
+                <span className="inline-flex items-center gap-1 rounded-[4px] bg-muted px-2 py-1 text-[11px] font-medium text-ink-2">
+                  <ArrowUpDown size={12} />
+                  {t.contracts.sortBy}: <strong className="text-ink">{sortBy}</strong> ({sortOrder.toUpperCase()})
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={resetFilters}
+                  className="text-xs text-ink-2 hover:text-expired"
+                >
+                  <RotateCcw size={12} /> {t.contracts.resetFilter}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setIsFilterOpen(false)}
+                  className="text-xs"
+                >
+                  {t.contracts.closeFilter}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Table */}
@@ -380,12 +768,52 @@ export default function EmployeesPage() {
           <table className="table min-w-[800px]">
             <thead>
               <tr>
-                <th className="th">{t.employees.employeeId}</th>
-                <th className="th">{t.employees.name}</th>
-                <th className="th">{t.employees.department}</th>
+                <th
+                  className="th cursor-pointer select-none hover:text-accent transition-colors"
+                  onClick={() => handleSortHeader('nik')}
+                >
+                  <div className="flex items-center gap-1">
+                    <span>{t.employees.employeeId}</span>
+                    {sortBy === 'nik' && (
+                      sortOrder === 'asc' ? <ArrowUp size={12} className="text-accent" /> : <ArrowDown size={12} className="text-accent" />
+                    )}
+                  </div>
+                </th>
+                <th
+                  className="th cursor-pointer select-none hover:text-accent transition-colors"
+                  onClick={() => handleSortHeader('name')}
+                >
+                  <div className="flex items-center gap-1">
+                    <span>{t.employees.name}</span>
+                    {sortBy === 'name' && (
+                      sortOrder === 'asc' ? <ArrowUp size={12} className="text-accent" /> : <ArrowDown size={12} className="text-accent" />
+                    )}
+                  </div>
+                </th>
+                <th
+                  className="th cursor-pointer select-none hover:text-accent transition-colors"
+                  onClick={() => handleSortHeader('department')}
+                >
+                  <div className="flex items-center gap-1">
+                    <span>{t.employees.department}</span>
+                    {sortBy === 'department' && (
+                      sortOrder === 'asc' ? <ArrowUp size={12} className="text-accent" /> : <ArrowDown size={12} className="text-accent" />
+                    )}
+                  </div>
+                </th>
                 <th className="th">{t.employees.contractType}</th>
                 <th className="th">{t.employees.contractHistory}</th>
-                <th className="th">{t.employees.joinDate}</th>
+                <th
+                  className="th cursor-pointer select-none hover:text-accent transition-colors"
+                  onClick={() => handleSortHeader('joinDate')}
+                >
+                  <div className="flex items-center gap-1">
+                    <span>{t.employees.joinDate}</span>
+                    {sortBy === 'joinDate' && (
+                      sortOrder === 'asc' ? <ArrowUp size={12} className="text-accent" /> : <ArrowDown size={12} className="text-accent" />
+                    )}
+                  </div>
+                </th>
                 <th className="th">{t.common.status}</th>
                 <th className="th text-right">{t.common.actions}</th>
               </tr>
@@ -395,12 +823,12 @@ export default function EmployeesPage() {
                 <tr>
                   <td className="td py-10 text-center text-xs text-ink-2" colSpan={8}>{t.common.loading}</td>
                 </tr>
-              ) : employees.length === 0 ? (
+              ) : displayEmployees.length === 0 ? (
                 <tr>
                   <td className="td py-10 text-center text-xs text-ink-2" colSpan={8}>{t.employees.noData}</td>
                 </tr>
               ) : (
-                employees.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((emp) => {
+                displayEmployees.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((emp) => {
                   const contractHistory = (emp.contracts || []).slice().sort((a, b) => a.sequence - b.sequence);
                   const activeContract =
                     contractHistory.find((c) => c.status === 'AKTIF' || c.status === 'AKAN_BERAKHIR') ||

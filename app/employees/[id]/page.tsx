@@ -230,7 +230,11 @@ export default function EmployeeDetailPage() {
                     </div>
                     <div>
                       <p className="text-ink-2">{t.employeeDetail.endDate}</p>
-                      <p className="font-semibold text-ink">{formatDate(activeContract.endDate)}</p>
+                      <p className="font-semibold text-ink">
+                        {activeContract.contractType === 'PKWTT' || new Date(activeContract.endDate).getFullYear() >= 2099
+                          ? 'Tetap'
+                          : formatDate(activeContract.endDate)}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -312,7 +316,7 @@ export default function EmployeeDetailPage() {
                           </Badge>
                         </div>
                         <span className="text-[11px] text-ink-2">
-                          {formatDate(c.startDate)} — {formatDate(c.endDate)}
+                          {formatDate(c.startDate)} — {c.contractType === 'PKWTT' || new Date(c.endDate).getFullYear() >= 2099 ? 'Tetap' : formatDate(c.endDate)}
                         </span>
                       </div>
 

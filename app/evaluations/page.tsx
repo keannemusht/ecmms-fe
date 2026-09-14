@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Plus,
@@ -33,6 +33,7 @@ import {
   cn,
 } from '../components/ui';
 import { formatDate, getApiError } from '../lib/helpers';
+import { useDebouncedValue } from '../lib/useDebouncedValue';
 import { Employee, ContractEvaluation } from '../lib/types';
 import {
   EVALUATION_CATEGORIES,
@@ -791,6 +792,7 @@ export default function EvaluationsPage() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search);
   const [pageMsg, setPageMsg] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
 
   // Modal State
@@ -827,17 +829,23 @@ export default function EvaluationsPage() {
   const [empSearch, setEmpSearch] = useState('');
   const comboboxRef = useRef<HTMLDivElement>(null);
 
-  const fetchEvaluations = async () => {
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
+
+  const fetchEvaluations = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get('/evaluations');
+      const params = new URLSearchParams();
+      if (debouncedSearch) params.append('search', debouncedSearch);
+      const res = await api.get(`/evaluations?${params.toString()}`);
       setEvaluations(res.data?.evaluations || []);
     } catch (err) {
       setPageMsg({ type: 'error', text: getApiError(err) });
     } finally {
       setLoading(false);
     }
-  };
+  }, [debouncedSearch]);
 
   const fetchEmployees = async () => {
     try {
@@ -852,7 +860,7 @@ export default function EvaluationsPage() {
   useEffect(() => {
     fetchEvaluations();
     fetchEmployees();
-  }, []);
+  }, [fetchEvaluations]);
 
   // Close combobox on outside click
   useEffect(() => {
@@ -1039,18 +1047,24 @@ export default function EvaluationsPage() {
     }
   };
 
-  // Filter evaluations in table
+  // Filter evaluations in table (comprehensive general search)
   const filteredEvaluations = useMemo(() => {
-    if (!search.trim()) return evaluations;
-    const q = search.toLowerCase();
+    if (!debouncedSearch.trim()) return evaluations;
+    const q = debouncedSearch.toLowerCase().trim();
     return evaluations.filter(
       (ev) =>
         (ev.documentNumber && ev.documentNumber.toLowerCase().includes(q)) ||
         (ev.employee?.name && ev.employee.name.toLowerCase().includes(q)) ||
         (ev.employee?.nik && ev.employee.nik.toLowerCase().includes(q)) ||
-        (ev.employee?.department && ev.employee.department.toLowerCase().includes(q))
+        (ev.employee?.department && ev.employee.department.toLowerCase().includes(q)) ||
+        (ev.employee?.position && ev.employee.position.toLowerCase().includes(q)) ||
+        (ev.contract?.contractNumber && ev.contract.contractNumber.toLowerCase().includes(q)) ||
+        (ev.evaluatorName && ev.evaluatorName.toLowerCase().includes(q)) ||
+        (ev.ratingGrade && ev.ratingGrade.toLowerCase().includes(q)) ||
+        (ev.recommendationType && ev.recommendationType.toLowerCase().includes(q)) ||
+        (ev.notes && ev.notes.toLowerCase().includes(q))
     );
-  }, [evaluations, search]);
+  }, [evaluations, debouncedSearch]);
 
   return (
     <AppShell>
@@ -1083,7 +1097,11 @@ export default function EvaluationsPage() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={lang === 'en' ? 'Search employee name, NRP, department, or doc number...' : 'Cari nama karyawan, NRP, departemen, atau no. dokumen...'}
+            placeholder={
+              lang === 'en'
+                ? 'Search employee, NIK, position, dept, doc no., contract no...'
+                : 'Cari nama karyawan, NIK, jabatan, departemen, no. dokumen, no. kontrak...'
+            }
             className="pl-9 w-full"
           />
         </div>

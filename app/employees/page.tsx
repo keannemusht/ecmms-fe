@@ -92,9 +92,14 @@ export default function EmployeesPage() {
   });
 
   useEffect(() => {
-    const sp = new URLSearchParams(window.location.search);
-    const q = sp.get('search');
-    if (q) setSearch(q);
+    const readQuery = () => {
+      const sp = new URLSearchParams(window.location.search);
+      const q = sp.get('search');
+      if (q !== null) setSearch(q);
+    };
+    readQuery();
+    window.addEventListener('popstate', readQuery);
+    return () => window.removeEventListener('popstate', readQuery);
   }, []);
 
   useEffect(() => {

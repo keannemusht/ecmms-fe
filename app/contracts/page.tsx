@@ -246,23 +246,38 @@ export default function ContractsPage() {
     setPage(1);
   }, [statusFilter, debouncedSearch, dateType, dateFrom, dateTo, sortBy, sortOrder]);
 
-  useEffect(() => {
-    const sp = new URLSearchParams(window.location.search);
-    const s = sp.get('status');
-    if (s) setStatusFilter(s);
-  }, []);
+  const lastOpenedContractId = useRef<string | null>(null);
 
-  const autoOpenedContract = useRef(false);
   useEffect(() => {
-    if (autoOpenedContract.current || contracts.length === 0) return;
-    const sp = new URLSearchParams(window.location.search);
-    const contractId = sp.get('contract');
-    if (!contractId) return;
-    const c = contracts.find((x) => x.id === contractId);
-    if (c) {
-      autoOpenedContract.current = true;
-      openDetailModalFor(c);
-    }
+    const readParams = () => {
+      const sp = new URLSearchParams(window.location.search);
+      const s = sp.get('status');
+      if (s !== null) setStatusFilter(s);
+      const q = sp.get('search');
+      if (q !== null) setSearch(q);
+      const contractId = sp.get('contract');
+      if (contractId && lastOpenedContractId.current !== contractId) {
+        const c = contracts.find((x) => x.id === contractId);
+        if (c) {
+          lastOpenedContractId.current = contractId;
+          openDetailModalFor(c);
+        } else {
+          api
+            .get(`/contracts/${contractId}`)
+            .then((res) => {
+              if (res.data) {
+                lastOpenedContractId.current = contractId;
+                openDetailModalFor(res.data);
+              }
+            })
+            .catch(() => {});
+        }
+      }
+    };
+
+    readParams();
+    window.addEventListener('popstate', readParams);
+    return () => window.removeEventListener('popstate', readParams);
   }, [contracts]);
 
   const handleCreateContract = async (e: React.FormEvent) => {

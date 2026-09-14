@@ -32,6 +32,10 @@ export default function AuditLogsPage() {
   const debouncedSearch = useDebouncedValue(search);
 
   useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
+
+  useEffect(() => {
     let cancelled = false;
     const params = new URLSearchParams();
     if (debouncedSearch) params.append('search', debouncedSearch);

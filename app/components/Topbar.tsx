@@ -93,7 +93,9 @@ export default function Topbar() {
             </div>
             <div className="hidden text-left lg:block">
               <p className="max-w-[120px] truncate text-xs font-semibold text-ink">{user?.name}</p>
-              <p className="font-mono text-[9px] uppercase tracking-wider text-ink-2">{user?.role}</p>
+              <p className="text-[10px] font-semibold text-ink-2">
+                {user?.role ? (t.role[user.role.toLowerCase() as 'admin' | 'management' | 'user'] ?? user.role) : ''}
+              </p>
             </div>
             <ChevronDown
               size={14}
@@ -109,7 +111,9 @@ export default function Topbar() {
               {/* User header */}
               <div className="border-b border-line bg-muted/40 px-3 py-2">
                 <p className="truncate text-xs font-bold text-ink">{user?.name}</p>
-                <p className="font-mono text-[9px] uppercase tracking-wider text-ink-2">{user?.role}</p>
+                <p className="text-[10px] font-semibold text-ink-2">
+                  {user?.role ? (t.role[user.role.toLowerCase() as 'admin' | 'management' | 'user'] ?? user.role) : ''}
+                </p>
               </div>
 
               {/* Navigation link - Temporarily hidden */}

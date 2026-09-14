@@ -28,7 +28,7 @@ const id = {
     previewActive: 'Pratinjau',
   },
   role: {
-    admin: 'Admin',
+    admin: 'Full Access',
     management: 'Management',
     user: 'Karyawan',
     mode: 'Mode',
@@ -85,7 +85,7 @@ const id = {
     password: 'Password',
     loginButton: 'Masuk ke Sistem',
     quickLogin: 'Quick Login (Mode Demo)',
-    roleAdmin: 'Admin',
+    roleAdmin: 'Full Access',
     roleMgmt: 'Management',
     roleUser: 'Karyawan',
     processing: 'Memproses...',
@@ -462,7 +462,7 @@ const id = {
     deleteConfirm: 'Hapus akun user ini?',
     password: 'Password',
     passwordHint: 'Kosongkan jika tidak ingin mengubah password.',
-    adminOnly: 'Peran ADMIN hanya dapat dikelola oleh Admin.',
+    adminOnly: 'Peran Full Access hanya dapat dikelola oleh pengguna Full Access.',
     linkEmployee: 'Hubungkan ke Karyawan (opsional)',
   },
   audit: {
@@ -532,7 +532,7 @@ const en: Dict = {
     previewActive: 'Preview',
   },
   role: {
-    admin: 'Admin',
+    admin: 'Full Access',
     management: 'Management',
     user: 'Employee',
     mode: 'Mode',
@@ -589,7 +589,7 @@ const en: Dict = {
     password: 'Password',
     loginButton: 'Sign in',
     quickLogin: 'Quick Login (Demo Mode)',
-    roleAdmin: 'Admin',
+    roleAdmin: 'Full Access',
     roleMgmt: 'Management',
     roleUser: 'Employee',
     processing: 'Processing...',
@@ -966,7 +966,7 @@ const en: Dict = {
     deleteConfirm: 'Delete this user account?',
     password: 'Password',
     passwordHint: 'Leave blank to keep the current password.',
-    adminOnly: 'ADMIN role accounts can only be managed by an Admin.',
+    adminOnly: 'Full Access role accounts can only be managed by a Full Access user.',
     linkEmployee: 'Link to Employee (optional)',
   },
   audit: {

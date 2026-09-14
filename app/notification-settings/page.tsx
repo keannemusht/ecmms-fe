@@ -276,7 +276,7 @@ export default function NotificationSettingsPage() {
                     {r.targetRoles.map((role) => (
                       <span
                         key={role}
-                        className="rounded-[4px] bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase text-ink-2"
+                        className="rounded-[4px] bg-muted px-1.5 py-0.5 text-[10px] font-bold text-ink-2"
                       >
                         {t.role[role.toLowerCase() as 'admin' | 'management' | 'user']}
                       </span>

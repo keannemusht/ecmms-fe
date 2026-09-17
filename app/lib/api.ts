@@ -11,7 +11,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
-      if (window.location.pathname !== '/login') {
+      const pathname = window.location.pathname;
+      const isPublicPath = pathname === '/login' || pathname.startsWith('/evaluate');
+      if (!isPublicPath) {
         window.location.replace('/login');
       }
     }

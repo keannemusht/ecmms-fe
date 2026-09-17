@@ -116,6 +116,47 @@ export function toISODate(d: Date): string {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
+/**
+ * Calculates contract end date based on start date (YYYY-MM-DD) and duration (months).
+ * Standard HR / PKWT rule:
+ * - If start date is 1st of month: Ends on last day of previous month after duration (e.g. 2025-04-01 + 12m -> 2026-03-31, + 6m -> 2025-09-30).
+ * - If start date is d > 1: Ends on (d - 1) of target month, clamped to days in month (e.g. 2025-03-31 + 12m -> 2026-03-30, + 6m -> 2025-09-30).
+ */
+export function calculateContractEndDate(startDateStr: string, durationMonths: number = 12): string {
+  if (!startDateStr) return '';
+  const clean = startDateStr.split('T')[0];
+  const [y, m, d] = clean.split('-').map(Number);
+  if (!y || !m || !d) return '';
+
+  const totalMonths = (m - 1) + durationMonths;
+  const targetYear = y + Math.floor(totalMonths / 12);
+  const targetMonth = totalMonths % 12; // 0-indexed
+
+  let targetDate: Date;
+  if (d === 1) {
+    // 1 day before the 1st of the target month
+    targetDate = new Date(targetYear, targetMonth, 0);
+  } else {
+    const daysInTargetMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+    const targetDay = Math.min(d - 1, daysInTargetMonth);
+    targetDate = new Date(targetYear, targetMonth, targetDay);
+  }
+
+  return toISODate(targetDate);
+}
+
+/**
+ * Returns the next day in 'YYYY-MM-DD' format (e.g. renewal start date = day after previous contract ends).
+ */
+export function getNextDayISODate(dateStr: string): string {
+  if (!dateStr) return '';
+  const clean = dateStr.split('T')[0];
+  const [y, m, d] = clean.split('-').map(Number);
+  if (!y || !m || !d) return '';
+  const next = new Date(y, m - 1, d + 1);
+  return toISODate(next);
+}
+
 function buildDate(y: number, mo: number, day: number): string {
   const d = new Date(y, mo - 1, day);
   if (isNaN(d.getTime())) return '';

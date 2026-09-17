@@ -26,6 +26,12 @@ import {
   X,
   Lock,
   FileCheck2,
+  Check,
+  Mail,
+  Copy,
+  Printer,
+  Clock,
+  Send,
 } from 'lucide-react';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
@@ -44,9 +50,19 @@ import {
   Pagination,
   cn,
 } from '../components/ui';
-import { formatDate, contractStatusTone, contractStatusKey, daysUntil, getApiError, toISODate } from '../lib/helpers';
+import {
+  formatDate,
+  contractStatusTone,
+  contractStatusKey,
+  daysUntil,
+  getApiError,
+  toISODate,
+  calculateContractEndDate,
+  getNextDayISODate,
+} from '../lib/helpers';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
 import { Contract, Employee, ContractEvaluation } from '../lib/types';
+import SearchableEmployeeSelect from '../components/SearchableEmployeeSelect';
 
 const STATUS_FILTERS = [
   { labelKey: 'allStatus', value: '' },
@@ -57,7 +73,7 @@ const STATUS_FILTERS = [
 ];
 
 const defaultStartDate = new Date().toISOString().split('T')[0];
-const defaultEndDate = new Date(Date.now() + 365 * 86400000).toISOString().split('T')[0];
+const defaultEndDate = calculateContractEndDate(defaultStartDate, 12);
 
 export default function ContractsPage() {
   const { user } = useAuth();
@@ -88,6 +104,26 @@ export default function ContractsPage() {
   const [contractEvaluation, setContractEvaluation] = useState<ContractEvaluation | null>(null);
   const [evalLoading, setEvalLoading] = useState(false);
   const [waSending, setWaSending] = useState(false);
+
+  const [newDurationMonths, setNewDurationMonths] = useState<6 | 12>(12);
+  const [extendDurationMonths, setExtendDurationMonths] = useState<6 | 12>(12);
+  const [editDurationMonths, setEditDurationMonths] = useState<6 | 12>(12);
+
+  const [evaluatorForm, setEvaluatorForm] = useState({
+    evaluatorEmployeeId: '',
+    evaluatorName: '',
+    evaluatorPosition: '',
+    evaluatorEmail: '',
+    evaluatorPhone: '',
+  });
+  const [sendingLink, setSendingLink] = useState(false);
+  const [sendingChannel, setSendingChannel] = useState<'EMAIL' | 'WHATSAPP' | 'COPY' | null>(null);
+  const [lastActionChannel, setLastActionChannel] = useState<'EMAIL' | 'WHATSAPP' | 'COPY' | null>(null);
+  const [sendLinkSuccess, setSendLinkSuccess] = useState('');
+  const [sendLinkError, setSendLinkError] = useState('');
+  const [generatedEvalUrl, setGeneratedEvalUrl] = useState('');
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [lastWhatsAppUrl, setLastWhatsAppUrl] = useState('');
 
   const [newContractData, setNewContractData] = useState({
     employeeId: '',
@@ -331,12 +367,19 @@ export default function ContractsPage() {
 
   const openEditModalFor = (c: Contract) => {
     setSelectedContract(c);
+    const startStr = toISODate(new Date(c.startDate));
+    const endStr = toISODate(new Date(c.endDate));
+    const dStart = new Date(startStr);
+    const dEnd = new Date(endStr);
+    const diffMonths = (dEnd.getFullYear() - dStart.getFullYear()) * 12 + (dEnd.getMonth() - dStart.getMonth());
+    const dur: 6 | 12 = diffMonths <= 8 ? 6 : 12;
+    setEditDurationMonths(dur);
     setEditData({
       contractNumber: c.contractNumber || '',
       contractType: c.contractType,
       status: c.status,
-      startDate: toISODate(new Date(c.startDate)),
-      endDate: toISODate(new Date(c.endDate)),
+      startDate: startStr,
+      endDate: endStr,
       notes: c.notes || '',
       sequence: c.sequence || 1,
     });
@@ -396,11 +439,120 @@ export default function ContractsPage() {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => setEditData({ ...editData, [k]: e.target.value });
 
+  const handleSelectEvaluatorEmployee = (emp: Employee | null) => {
+    if (emp) {
+      setEvaluatorForm({
+        evaluatorEmployeeId: emp.id,
+        evaluatorName: emp.name,
+        evaluatorPosition: emp.position || '',
+        evaluatorEmail: emp.email || '',
+        evaluatorPhone: emp.phone || '',
+      });
+      setSendLinkError('');
+    } else {
+      setEvaluatorForm({
+        evaluatorEmployeeId: '',
+        evaluatorName: '',
+        evaluatorPosition: '',
+        evaluatorEmail: '',
+        evaluatorPhone: '',
+      });
+    }
+  };
+
+  const handleSendEvaluationLink = async (channel: 'EMAIL' | 'WHATSAPP' | 'COPY') => {
+    if (!selectedContract?.employeeId) return;
+    if (!evaluatorForm.evaluatorName.trim()) {
+      setSendLinkError('Nama atasan penilai wajib diisi.');
+      return;
+    }
+    if (channel === 'EMAIL' && !evaluatorForm.evaluatorEmail?.trim()) {
+      setSendLinkError('Email atasan penilai wajib diisi untuk mengirim via Email.');
+      return;
+    }
+
+    // Buka tab/window baru secara sinkron saat user mengklik tombol
+    // Ini mencegah browser (Chrome/Edge/Safari) memblokir popup karena operasi async
+    let waPopup: Window | null = null;
+    if (channel === 'WHATSAPP') {
+      waPopup = window.open('', '_blank');
+    }
+
+    try {
+      setSendingLink(true);
+      setSendingChannel(channel);
+      setSendLinkError('');
+      setSendLinkSuccess('');
+      const res = await api.post('/evaluations/send-link', {
+        employeeId: selectedContract.employeeId,
+        contractId: selectedContract.id,
+        evaluatorName: evaluatorForm.evaluatorName.trim(),
+        evaluatorPosition: evaluatorForm.evaluatorPosition?.trim() || undefined,
+        evaluatorEmail: evaluatorForm.evaluatorEmail?.trim() || undefined,
+        evaluatorPhone: evaluatorForm.evaluatorPhone?.trim() || undefined,
+        sendEmailNow: channel === 'EMAIL',
+        frontendBaseUrl: window.location.origin,
+      });
+
+      const updatedEval = res.data.evaluation;
+      setContractEvaluation(updatedEval);
+      const fullUrl = res.data.evaluationUrl || `${window.location.origin}/evaluate/${updatedEval.accessToken}`;
+      setGeneratedEvalUrl(fullUrl);
+      setLastActionChannel(channel);
+
+      if (channel === 'COPY') {
+        setLastWhatsAppUrl('');
+        if (waPopup) waPopup.close();
+        await navigator.clipboard.writeText(fullUrl);
+        setCopiedLink(true);
+        setTimeout(() => setCopiedLink(false), 3000);
+        setSendLinkSuccess('Tautan form evaluasi berhasil disalin ke clipboard!');
+      } else if (channel === 'WHATSAPP') {
+        const waUrl = res.data.whatsappUrl;
+        if (waUrl) {
+          setLastWhatsAppUrl(waUrl);
+          if (waPopup) {
+            waPopup.location.href = waUrl;
+          } else {
+            window.location.href = waUrl;
+          }
+          setSendLinkSuccess(
+            evaluatorForm.evaluatorPhone?.trim()
+              ? `Tautan WhatsApp siap untuk ${evaluatorForm.evaluatorPhone}. Jika tab WhatsApp belum terbuka otomatis, silakan klik tombol di bawah.`
+              : 'Tautan WhatsApp siap (silakan pilih kontak di WhatsApp). Jika tab WhatsApp belum terbuka otomatis, silakan klik tombol di bawah.'
+          );
+        } else {
+          setLastWhatsAppUrl('');
+          if (waPopup) waPopup.close();
+          await navigator.clipboard.writeText(fullUrl);
+          setSendLinkSuccess('Tautan berhasil dibuat dan disalin ke clipboard.');
+        }
+      } else if (channel === 'EMAIL') {
+        setLastWhatsAppUrl('');
+        if (waPopup) waPopup.close();
+        if (res.data.emailSent) {
+          setSendLinkSuccess(`Email undangan evaluasi berhasil dikirimkan ke ${evaluatorForm.evaluatorEmail}`);
+        } else {
+          setSendLinkSuccess(`Tautan evaluasi siap: ${res.data.emailError || 'Email tidak terkirim, gunakan opsi WhatsApp atau Salin Tautan di bawah.'}`);
+        }
+      }
+    } catch (err: any) {
+      if (waPopup) waPopup.close();
+      console.error('Failed to send evaluation link:', err);
+      setSendLinkError(getApiError(err));
+    } finally {
+      setSendingLink(false);
+      setSendingChannel(null);
+    }
+  };
+
   const openExtendModalFor = useCallback(async (c: Contract) => {
     setSelectedContract(c);
     const dept = c.employee?.department?.substring(0, 3).toUpperCase() || 'EMP';
-    const newStartDate = new Date(c.endDate).toISOString().split('T')[0];
-    const newEndDate = new Date(new Date(c.endDate).getTime() + 365 * 86400000).toISOString().split('T')[0];
+    const newStartDate = getNextDayISODate(toISODate(new Date(c.endDate)));
+    const initialDur = 12;
+    setExtendDurationMonths(initialDur);
+    const newEndDate = calculateContractEndDate(newStartDate, initialDur);
     const generatedNo = `PKWT/${new Date().getFullYear()}/${dept}/${Math.floor(Math.random() * 900 + 100)}`;
     setSuggestedNewContractNumber(generatedNo);
 
@@ -421,6 +573,20 @@ export default function ContractsPage() {
     setContractEvaluation(null);
     setFormError('');
     setFormSuccess('');
+    setSendLinkSuccess('');
+    setSendLinkError('');
+    setGeneratedEvalUrl('');
+    setCopiedLink(false);
+    setLastWhatsAppUrl('');
+    setLastActionChannel(null);
+    setSendingChannel(null);
+    setEvaluatorForm({
+      evaluatorEmployeeId: '',
+      evaluatorName: '',
+      evaluatorPosition: '',
+      evaluatorEmail: '',
+      evaluatorPhone: '',
+    });
     setShowExtendModal(true);
 
     try {
@@ -438,25 +604,37 @@ export default function ContractsPage() {
 
       if (evalData) {
         setContractEvaluation(evalData);
-        if (evalData.recommendationDuration) {
-          const start = new Date(c.endDate);
-          const end = new Date(start);
-          end.setMonth(end.getMonth() + Number(evalData.recommendationDuration));
-          setExtendData((prev) => ({
-            ...prev,
-            actionType: 'PERPANJANG_PKWT',
-            newEndDate: end.toISOString().split('T')[0],
-          }));
-        } else if (evalData.recommendationType === 'SELESAI_KONTRAK') {
-          setExtendData((prev) => ({
-            ...prev,
-            actionType: 'SELESAI_KONTRAK',
-          }));
-        } else if (evalData.recommendationType === 'ANGKAT_PKWTT') {
-          setExtendData((prev) => ({
-            ...prev,
-            actionType: 'ANGKAT_TETAP',
-          }));
+        if (evalData.accessToken) {
+          setGeneratedEvalUrl(`${window.location.origin}/evaluate/${evalData.accessToken}`);
+        }
+        setEvaluatorForm({
+          evaluatorEmployeeId: '',
+          evaluatorName: evalData.evaluatorName || '',
+          evaluatorPosition: evalData.evaluatorPosition || '',
+          evaluatorEmail: evalData.evaluatorEmail || '',
+          evaluatorPhone: evalData.evaluatorPhone || '',
+        });
+
+        if (evalData.status === 'COMPLETED') {
+          if (evalData.recommendationDuration) {
+            const dur: 6 | 12 = Number(evalData.recommendationDuration) === 6 ? 6 : 12;
+            setExtendDurationMonths(dur);
+            setExtendData((prev) => ({
+              ...prev,
+              actionType: 'PERPANJANG_PKWT',
+              newEndDate: calculateContractEndDate(prev.newStartDate, dur),
+            }));
+          } else if (evalData.recommendationType === 'SELESAI_KONTRAK') {
+            setExtendData((prev) => ({
+              ...prev,
+              actionType: 'SELESAI_KONTRAK',
+            }));
+          } else if (evalData.recommendationType === 'ANGKAT_PKWTT') {
+            setExtendData((prev) => ({
+              ...prev,
+              actionType: 'ANGKAT_TETAP',
+            }));
+          }
         }
       }
     } catch (err) {
@@ -464,7 +642,7 @@ export default function ContractsPage() {
     } finally {
       setEvalLoading(false);
     }
-  }, [t, employees, contracts]);
+  }, [employees, contracts]);
 
   const extendHandledRef = useRef(false);
   useEffect(() => {
@@ -487,10 +665,15 @@ export default function ContractsPage() {
   const handleEmployeeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const employeeId = e.target.value;
     const emp = employees.find((x) => x.id === employeeId);
+    const start = emp?.joinDate ? toISODate(new Date(emp.joinDate)) : newContractData.startDate;
+    const end = newContractData.contractType === 'PKWT'
+      ? calculateContractEndDate(start, newDurationMonths)
+      : newContractData.endDate;
     setNewContractData({
       ...newContractData,
       employeeId,
-      startDate: emp?.joinDate ? toISODate(new Date(emp.joinDate)) : newContractData.startDate,
+      startDate: start,
+      endDate: end,
     });
   };
 
@@ -975,14 +1158,26 @@ export default function ContractsPage() {
         {formSuccess && <div className="mb-4 rounded-[6px] border border-active/30 bg-active/10 p-3 text-xs text-active">{formSuccess}</div>}
         <form onSubmit={handleCreateContract} className="space-y-3.5">
           <Field label={t.contracts.employeeSelect} required>
-            <Select value={newContractData.employeeId} onChange={handleEmployeeChange} required>
-              <option value="">-- {t.contracts.employeeSelect} --</option>
-              {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.name} ({emp.nik}) - {emp.department}
-                </option>
-              ))}
-            </Select>
+            <SearchableEmployeeSelect
+              employees={employees}
+              value={newContractData.employeeId}
+              placeholder={`-- Cari atau ${t.contracts.employeeSelect} --`}
+              clearLabel="-- Batalkan Pilihan Karyawan --"
+              required
+              onSelect={(emp) => {
+                const empId = emp ? emp.id : '';
+                const start = emp?.joinDate ? toISODate(new Date(emp.joinDate)) : newContractData.startDate;
+                const end = newContractData.contractType === 'PKWT'
+                  ? calculateContractEndDate(start, newDurationMonths)
+                  : newContractData.endDate;
+                setNewContractData({
+                  ...newContractData,
+                  employeeId: empId,
+                  startDate: start,
+                  endDate: end,
+                });
+              }}
+            />
           </Field>
           {selectedEmployee && (
             <div className="flex flex-col gap-1 rounded-[6px] border border-accent/30 bg-accent/10 px-3 py-2.5 text-xs text-ink sm:flex-row sm:items-center sm:justify-between">
@@ -1000,21 +1195,118 @@ export default function ContractsPage() {
               <Input value={newContractData.contractNumber} onChange={setNew('contractNumber')} placeholder="PKWT/2026/TECH/001 (Opsional)" />
             </Field>
             <Field label={t.contracts.typeLabel} required>
-              <Select value={newContractData.contractType} onChange={setNew('contractType')}>
+              <Select
+                value={newContractData.contractType}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const end = val === 'PKWT'
+                    ? calculateContractEndDate(newContractData.startDate, newDurationMonths)
+                    : newContractData.endDate;
+                  setNewContractData({ ...newContractData, contractType: val, endDate: end });
+                }}
+              >
                 <option value="PKWT">{t.employmentType.PKWT}</option>
                 <option value="PKWTT">{t.employmentType.PKWTT}</option>
                 <option value="MAGANG">{t.employmentType.MAGANG}</option>
               </Select>
             </Field>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={t.contracts.dateStartLabel} required>
-              <Input type="date" value={newContractData.startDate} onChange={setNew('startDate')} required />
-            </Field>
-            <Field label={t.contracts.dateEndLabel} required>
-              <Input type="date" value={newContractData.endDate} onChange={setNew('endDate')} required />
-            </Field>
-          </div>
+
+          {newContractData.contractType === 'PKWT' ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label={t.contracts.dateStartLabel} required>
+                  <Input
+                    type="date"
+                    value={newContractData.startDate}
+                    onChange={(e) => {
+                      const start = e.target.value;
+                      setNewContractData({
+                        ...newContractData,
+                        startDate: start,
+                        endDate: calculateContractEndDate(start, newDurationMonths),
+                      });
+                    }}
+                    required
+                  />
+                </Field>
+
+                <Field label={t.contracts.durationLabel} required>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewDurationMonths(6);
+                        setNewContractData((prev) => ({
+                          ...prev,
+                          endDate: calculateContractEndDate(prev.startDate, 6),
+                        }));
+                      }}
+                      className={cn(
+                        'flex items-center justify-center gap-1.5 py-2 px-3 rounded-[6px] text-xs font-bold border transition-colors',
+                        newDurationMonths === 6
+                          ? 'bg-accent text-white border-accent shadow-xs'
+                          : 'bg-surface border-line text-ink-2 hover:border-accent hover:text-ink'
+                      )}
+                    >
+                      {newDurationMonths === 6 && <Check size={14} />}
+                      <span>{t.contracts.duration6}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewDurationMonths(12);
+                        setNewContractData((prev) => ({
+                          ...prev,
+                          endDate: calculateContractEndDate(prev.startDate, 12),
+                        }));
+                      }}
+                      className={cn(
+                        'flex items-center justify-center gap-1.5 py-2 px-3 rounded-[6px] text-xs font-bold border transition-colors',
+                        newDurationMonths === 12
+                          ? 'bg-accent text-white border-accent shadow-xs'
+                          : 'bg-surface border-line text-ink-2 hover:border-accent hover:text-ink'
+                      )}
+                    >
+                      {newDurationMonths === 12 && <Check size={14} />}
+                      <span>{t.contracts.duration12}</span>
+                    </button>
+                  </div>
+                </Field>
+              </div>
+
+              {/* Auto-calculated End Date Card */}
+              <div className="rounded-[6px] border border-line bg-surface/80 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-ink-2">
+                    {t.contracts.autoEndDate}
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <Calendar size={15} className="text-accent shrink-0" />
+                    <span className="text-sm font-bold text-ink">
+                      {formatDate(newContractData.endDate)}
+                    </span>
+                    <Badge tone="info" className="text-[10px]">
+                      {newDurationMonths} Bulan
+                    </Badge>
+                  </div>
+                </div>
+                <div className="text-[11px] text-ink-2">
+                  {formatDate(newContractData.startDate)} s/d {formatDate(newContractData.endDate)}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t.contracts.dateStartLabel} required>
+                <Input type="date" value={newContractData.startDate} onChange={setNew('startDate')} required />
+              </Field>
+              <Field label={t.contracts.dateEndLabel} required>
+                <Input type="date" value={newContractData.endDate} onChange={setNew('endDate')} required />
+              </Field>
+            </div>
+          )}
           <Field label={t.contracts.notesLabel}>
             <Textarea value={newContractData.notes} onChange={setNew('notes')} placeholder={t.common.notes} />
           </Field>
@@ -1052,25 +1344,39 @@ export default function ContractsPage() {
               <Loader2 size={16} className="animate-spin text-accent" />
               <span>Memeriksa status form penilaian kontrak...</span>
             </div>
-          ) : contractEvaluation ? (
-            <div className="rounded-[6px] border border-emerald-500/30 bg-emerald-500/5 p-3.5 space-y-2">
+          ) : contractEvaluation && contractEvaluation.status === 'COMPLETED' ? (
+            <div className="rounded-[8px] border border-emerald-500/30 bg-emerald-500/5 p-3.5 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 size={16} className="text-emerald-500" />
-                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                    {t.contracts.evalFound} &bull; No: {contractEvaluation.documentNumber || '-'}
+                  <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
+                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                    Penilaian Selesai &bull; No: {contractEvaluation.documentNumber || '-'}
                   </span>
                 </div>
-                <Link
-                  href={`/evaluations?search=${encodeURIComponent(contractEvaluation.documentNumber || contractEvaluation.employee?.name || '')}`}
-                  target="_blank"
-                  className="flex items-center gap-1 text-[11px] font-medium text-accent hover:underline"
-                >
-                  <span>{t.contracts.evalViewForm}</span>
-                  <ExternalLink size={12} />
-                </Link>
+                <div className="flex items-center gap-2">
+                  {contractEvaluation.accessToken && (
+                    <Link
+                      href={`/evaluate/${contractEvaluation.accessToken}`}
+                      target="_blank"
+                      className="flex items-center gap-1.5 rounded-[5px] border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition-colors shadow-xs"
+                    >
+                      <Printer size={13} />
+                      <span>Cetak Form TTD Basah</span>
+                      <ExternalLink size={11} />
+                    </Link>
+                  )}
+                  <Link
+                    href={`/evaluations?search=${encodeURIComponent(contractEvaluation.documentNumber || contractEvaluation.employee?.name || '')}`}
+                    target="_blank"
+                    className="flex items-center gap-1 text-[11px] font-medium text-accent hover:underline"
+                  >
+                    <span>{t.contracts.evalViewForm}</span>
+                    <ExternalLink size={12} />
+                  </Link>
+                </div>
               </div>
-              <div className="grid grid-cols-3 gap-2 pt-1 border-t border-emerald-500/20 text-xs">
+
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-emerald-500/20 text-xs">
                 <div>
                   <div className="text-[10px] uppercase text-ink-2">{t.contracts.evalScore}</div>
                   <div className="font-bold text-ink">{Number(contractEvaluation.averageScore || 0).toFixed(2)} / 4.00</div>
@@ -1092,29 +1398,286 @@ export default function ContractsPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Fallback HR Manual Edit option */}
+              <div className="pt-2 border-t border-emerald-500/15 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] text-ink-2">
+                <span>
+                  Penilai: <strong>{contractEvaluation.evaluatorName || 'Atasan'}</strong> ({contractEvaluation.evaluatorPosition || 'Atasan Langsung'})
+                </span>
+                <Link
+                  href={`/evaluations?search=${encodeURIComponent(contractEvaluation.documentNumber || contractEvaluation.employee?.name || '')}`}
+                  target="_blank"
+                  className="text-accent hover:underline font-semibold"
+                >
+                  Koreksi / Edit Nilai Manual (HR) &rarr;
+                </Link>
+              </div>
             </div>
-          ) : (
-            <div className="rounded-[6px] border border-amber-500/30 bg-amber-500/5 p-3.5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                <div className="flex items-start gap-2">
-                  <AlertTriangle size={16} className="text-amber-500 shrink-0 mt-0.5" />
+          ) : contractEvaluation && contractEvaluation.status === 'WAITING_EVALUATION' ? (
+            <div className="rounded-[8px] border border-blue-500/30 bg-blue-500/5 p-3.5 space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start gap-2.5">
+                  <Clock size={18} className="text-blue-500 shrink-0 mt-0.5" />
                   <div>
-                    <div className="text-xs font-semibold text-amber-600 dark:text-amber-400">
-                      {t.contracts.evalNotFound} (Wajib Dilengkapi)
+                    <div className="text-xs font-bold text-blue-700 dark:text-blue-300">
+                      Tautan Evaluasi Digital Telah Dikirimkan
                     </div>
-                    <div className="text-[11px] text-ink-2 mt-0.5">
-                      Karyawan ini belum memiliki form penilaian kontrak terbaru. Tombol keputusan terkunci hingga form penilaian diisi dan disimpan.
+                    <div className="text-[11px] text-ink-2 mt-0.5 leading-relaxed">
+                      Menunggu penilaian dari: <strong>{contractEvaluation.evaluatorName || 'Atasan'}</strong>{' '}
+                      {contractEvaluation.evaluatorPosition ? `(${contractEvaluation.evaluatorPosition})` : ''}
+                      {contractEvaluation.evaluatorEmail ? ` &bull; ${contractEvaluation.evaluatorEmail}` : ''}
                     </div>
                   </div>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/15 text-blue-700 dark:text-blue-300 shrink-0">
+                  Menunggu Penilaian
+                </span>
+              </div>
+
+              {sendLinkSuccess && (
+                <div className="rounded border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs text-emerald-700 dark:text-emerald-300 space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    {lastActionChannel === 'EMAIL' && <Mail size={13} className="shrink-0 text-emerald-600 dark:text-emerald-400" />}
+                    {lastActionChannel === 'WHATSAPP' && <MessageSquare size={13} className="shrink-0 text-emerald-600 dark:text-emerald-400" />}
+                    {lastActionChannel === 'COPY' && <Copy size={13} className="shrink-0 text-emerald-600 dark:text-emerald-400" />}
+                    <span>{sendLinkSuccess}</span>
+                  </div>
+                  {lastActionChannel === 'WHATSAPP' && lastWhatsAppUrl && (
+                    <div className="pt-1">
+                      <a
+                        href={lastWhatsAppUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-[5px] bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                      >
+                        <MessageSquare size={13} />
+                        <span>Buka WhatsApp Sekarang &rarr;</span>
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+              {sendLinkError && (
+                <div className="rounded border border-expired/30 bg-expired/10 p-2 text-xs text-expired">
+                  {sendLinkError}
+                </div>
+              )}
+
+              {/* Quick Action buttons */}
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-blue-500/15">
+                <button
+                  type="button"
+                  onClick={() => handleSendEvaluationLink('COPY')}
+                  disabled={sendingLink}
+                  className="inline-flex items-center gap-1.5 rounded-[5px] border border-line bg-surface px-2.5 py-1.5 text-xs font-semibold text-ink hover:border-accent hover:text-accent transition-colors shadow-xs cursor-pointer"
+                >
+                  <Copy size={13} />
+                  <span>{copiedLink ? 'Tersalin!' : 'Salin Tautan'}</span>
+                </button>
+
+                {contractEvaluation.evaluatorPhone && (
+                  <button
+                    type="button"
+                    onClick={() => handleSendEvaluationLink('WHATSAPP')}
+                    disabled={sendingLink}
+                    className="inline-flex items-center gap-1.5 rounded-[5px] border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition-colors shadow-xs cursor-pointer"
+                  >
+                    <MessageSquare size={13} />
+                    <span>Buka WhatsApp</span>
+                  </button>
+                )}
+
+                {contractEvaluation.evaluatorEmail && (
+                  <button
+                    type="button"
+                    onClick={() => handleSendEvaluationLink('EMAIL')}
+                    disabled={sendingLink}
+                    className="inline-flex items-center gap-1.5 rounded-[5px] border border-blue-500/30 bg-blue-500/10 px-2.5 py-1.5 text-xs font-semibold text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 transition-colors shadow-xs cursor-pointer"
+                  >
+                    <Mail size={13} />
+                    <span>{sendingLink && sendingChannel === 'EMAIL' ? 'Mengirim...' : 'Kirim Ulang Email'}</span>
+                  </button>
+                )}
+
+                <Link
+                  href="/evaluations"
+                  target="_blank"
+                  className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-accent hover:underline"
+                >
+                  <span>Input Manual di Sistem (Bypass) &rarr;</span>
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-[8px] border border-amber-500/30 bg-amber-500/5 p-4 space-y-3.5">
+              <div className="flex items-start justify-between gap-2 border-b border-amber-500/20 pb-3">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle size={18} className="text-amber-500 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="text-xs font-bold text-amber-700 dark:text-amber-300">
+                      Form Penilaian Belum Ada (Wajib Dilengkapi)
+                    </div>
+                    <div className="text-[11px] text-ink-2 mt-0.5 leading-relaxed">
+                      Karyawan belum memiliki form penilaian kontrak. Kirimkan tautan digital ke atasan langsung (proses cepat ±2-3 menit) atau lakukan input manual.
+                    </div>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 shrink-0">
+                  Butuh Penilaian
+                </span>
+              </div>
+
+              {sendLinkSuccess && (
+                <div className="rounded border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs text-emerald-700 dark:text-emerald-300 space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    {lastActionChannel === 'EMAIL' && <Mail size={13} className="shrink-0 text-emerald-600 dark:text-emerald-400" />}
+                    {lastActionChannel === 'WHATSAPP' && <MessageSquare size={13} className="shrink-0 text-emerald-600 dark:text-emerald-400" />}
+                    {lastActionChannel === 'COPY' && <Copy size={13} className="shrink-0 text-emerald-600 dark:text-emerald-400" />}
+                    <span>{sendLinkSuccess}</span>
+                  </div>
+                  {lastActionChannel === 'WHATSAPP' && lastWhatsAppUrl && (
+                    <div className="pt-1">
+                      <a
+                        href={lastWhatsAppUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-[5px] bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                      >
+                        <MessageSquare size={13} />
+                        <span>Buka WhatsApp Sekarang &rarr;</span>
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+              {sendLinkError && (
+                <div className="rounded border border-expired/30 bg-expired/10 p-2.5 text-xs text-expired">
+                  {sendLinkError}
+                </div>
+              )}
+
+              {/* Section 1: Kirim Tautan Digital ke Atasan */}
+              <div className="space-y-2.5">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-ink flex items-center justify-between">
+                  <span>Opsi 1: Kirim Tautan Pengisian ke Atasan Langsung (Anti-Overdue)</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="text-[10px] font-semibold text-ink-2 block mb-1">
+                      Pilih Atasan dari Daftar Karyawan:
+                    </label>
+                    <SearchableEmployeeSelect
+                      employees={employees}
+                      value={evaluatorForm.evaluatorEmployeeId}
+                      excludeEmployeeId={selectedContract?.employeeId}
+                      targetDepartment={selectedContract?.employee?.department}
+                      placeholder="-- Cari atau Pilih Atasan / Supervisor --"
+                      clearLabel="-- Batal Pilih (Isi Manual) --"
+                      onSelect={handleSelectEvaluatorEmployee}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-semibold text-ink-2 block mb-1">
+                      Nama Atasan Penilai: <span className="text-expired">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={evaluatorForm.evaluatorName}
+                      onChange={(e) => setEvaluatorForm({ ...evaluatorForm, evaluatorName: e.target.value })}
+                      placeholder="Contoh: Hendra Wijaya"
+                      className="w-full rounded-[6px] border border-line bg-surface py-1.5 px-2.5 text-xs text-ink focus:border-accent focus:outline-none"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div>
+                    <label className="text-[10px] font-semibold text-ink-2 block mb-1">
+                      Jabatan Atasan:
+                    </label>
+                    <input
+                      type="text"
+                      value={evaluatorForm.evaluatorPosition}
+                      onChange={(e) => setEvaluatorForm({ ...evaluatorForm, evaluatorPosition: e.target.value })}
+                      placeholder="Contoh: Supervisor Tambang"
+                      className="w-full rounded-[6px] border border-line bg-surface py-1.5 px-2.5 text-xs text-ink focus:border-accent focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-ink-2 block mb-1">
+                      Email Atasan:
+                    </label>
+                    <input
+                      type="email"
+                      value={evaluatorForm.evaluatorEmail}
+                      onChange={(e) => setEvaluatorForm({ ...evaluatorForm, evaluatorEmail: e.target.value })}
+                      placeholder="atasan@bataramining.com"
+                      className="w-full rounded-[6px] border border-line bg-surface py-1.5 px-2.5 text-xs text-ink focus:border-accent focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-ink-2 block mb-1">
+                      No. WhatsApp Atasan:
+                    </label>
+                    <input
+                      type="tel"
+                      value={evaluatorForm.evaluatorPhone}
+                      onChange={(e) => setEvaluatorForm({ ...evaluatorForm, evaluatorPhone: e.target.value })}
+                      placeholder="08123456789"
+                      className="w-full rounded-[6px] border border-line bg-surface py-1.5 px-2.5 text-xs text-ink focus:border-accent focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Buttons to Send / Copy */}
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => handleSendEvaluationLink('EMAIL')}
+                    disabled={sendingLink || !evaluatorForm.evaluatorName.trim()}
+                    className="inline-flex items-center gap-1.5 rounded-[6px] bg-accent hover:bg-accent/90 text-white px-3 py-1.5 text-xs font-bold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    <Mail size={13} />
+                    <span>{sendingLink && sendingChannel === 'EMAIL' ? 'Mengirim...' : 'Kirim via Email'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSendEvaluationLink('WHATSAPP')}
+                    disabled={sendingLink || !evaluatorForm.evaluatorName.trim()}
+                    className="inline-flex items-center gap-1.5 rounded-[6px] border border-emerald-600 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 text-xs font-bold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    <MessageSquare size={13} />
+                    <span>{sendingLink && sendingChannel === 'WHATSAPP' ? 'Membuka...' : 'Kirim via WhatsApp'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSendEvaluationLink('COPY')}
+                    disabled={sendingLink || !evaluatorForm.evaluatorName.trim()}
+                    className="inline-flex items-center gap-1.5 rounded-[6px] border border-line bg-surface hover:border-accent text-ink px-3 py-1.5 text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    <Copy size={13} />
+                    <span>{sendingLink && sendingChannel === 'COPY' ? 'Membuat...' : (copiedLink ? 'Tersalin!' : 'Buat & Salin Tautan')}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Section 2: Fallback Input Manual oleh HR */}
+              <div className="pt-3 border-t border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="text-[11px] text-ink-2">
+                  <span className="font-semibold text-ink">Opsi 2:</span> Jaga-jaga berkas fisik sudah ada atau terjadi kesalahan atasan:
                 </div>
                 <Link
                   href="/evaluations"
                   target="_blank"
-                  className="shrink-0 inline-flex items-center justify-center gap-1.5 rounded-[6px] border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-colors shadow-xs"
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-[6px] border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 transition-colors shadow-xs"
                 >
                   <FileCheck2 size={13} />
-                  <span>{t.contracts.evalFillNow}</span>
-                  <ExternalLink size={12} />
+                  <span>Input / Koreksi Manual di Sistem &rarr;</span>
                 </Link>
               </div>
             </div>
@@ -1173,13 +1736,94 @@ export default function ContractsPage() {
                   placeholder={`${suggestedNewContractNumber} (Opsional)`}
                 />
               </Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label={t.contracts.newStart} required>
-                  <Input type="date" value={extendData.newStartDate} onChange={setExt('newStartDate')} required />
-                </Field>
-                <Field label={t.contracts.newEnd} required>
-                  <Input type="date" value={extendData.newEndDate} onChange={setExt('newEndDate')} required />
-                </Field>
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Field label={t.contracts.newStart} required>
+                    <Input
+                      type="date"
+                      value={extendData.newStartDate}
+                      onChange={(e) => {
+                        const start = e.target.value;
+                        setExtendData((prev) => ({
+                          ...prev,
+                          newStartDate: start,
+                          newEndDate: calculateContractEndDate(start, extendDurationMonths),
+                        }));
+                      }}
+                      required
+                    />
+                  </Field>
+
+                  <Field label={t.contracts.durationLabel} required>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setExtendDurationMonths(6);
+                          setExtendData((prev) => ({
+                            ...prev,
+                            newEndDate: calculateContractEndDate(prev.newStartDate, 6),
+                          }));
+                        }}
+                        className={cn(
+                          'flex items-center justify-center gap-1.5 py-2 px-3 rounded-[6px] text-xs font-bold border transition-colors',
+                          extendDurationMonths === 6
+                            ? 'bg-accent text-white border-accent shadow-xs'
+                            : 'bg-surface border-line text-ink-2 hover:border-accent hover:text-ink'
+                        )}
+                      >
+                        {extendDurationMonths === 6 && <Check size={14} />}
+                        <span>{t.contracts.duration6}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setExtendDurationMonths(12);
+                          setExtendData((prev) => ({
+                            ...prev,
+                            newEndDate: calculateContractEndDate(prev.newStartDate, 12),
+                          }));
+                        }}
+                        className={cn(
+                          'flex items-center justify-center gap-1.5 py-2 px-3 rounded-[6px] text-xs font-bold border transition-colors',
+                          extendDurationMonths === 12
+                            ? 'bg-accent text-white border-accent shadow-xs'
+                            : 'bg-surface border-line text-ink-2 hover:border-accent hover:text-ink'
+                        )}
+                      >
+                        {extendDurationMonths === 12 && <Check size={14} />}
+                        <span>{t.contracts.duration12}</span>
+                      </button>
+                    </div>
+                  </Field>
+                </div>
+
+                {/* Auto-calculated End Date Card */}
+                <div className="rounded-[6px] border border-line bg-surface/80 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-ink-2">
+                      <span>{t.contracts.autoEndDate}</span>
+                      {contractEvaluation?.recommendationDuration === extendDurationMonths && (
+                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold lowercase">
+                          ({t.contracts.recDurationNotice})
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <Calendar size={15} className="text-accent shrink-0" />
+                      <span className="text-sm font-bold text-ink">
+                        {formatDate(extendData.newEndDate)}
+                      </span>
+                      <Badge tone="info" className="text-[10px]">
+                        {extendDurationMonths} Bulan
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="text-[11px] text-ink-2">
+                    {formatDate(extendData.newStartDate)} s/d {formatDate(extendData.newEndDate)}
+                  </div>
+                </div>
               </div>
             </>
           ) : extendData.actionType === 'ANGKAT_TETAP' ? (
@@ -1200,11 +1844,13 @@ export default function ContractsPage() {
             />
           </Field>
 
-          {!evalLoading && !contractEvaluation && (
+          {!evalLoading && (!contractEvaluation || contractEvaluation.status !== 'COMPLETED') && (
             <div className="flex items-center gap-2 rounded-[6px] border border-expired/30 bg-expired/10 p-2.5 text-xs text-expired font-medium">
               <Lock size={14} className="shrink-0" />
               <span>
-                Tombol keputusan terkunci: Lengkapi form penilaian kontrak atas nama <strong>{selectedContract?.employee?.name}</strong> terlebih dahulu.
+                {contractEvaluation?.status === 'WAITING_EVALUATION'
+                  ? `Tombol keputusan terkunci: Menunggu atasan (${contractEvaluation.evaluatorName || 'Atasan'}) menyelesaikan penilaian via link online, atau lakukan input manual di menu evaluasi.`
+                  : `Tombol keputusan terkunci: Lengkapi form penilaian kontrak atas nama ${selectedContract?.employee?.name} terlebih dahulu.`}
               </span>
             </div>
           )}
@@ -1214,13 +1860,13 @@ export default function ContractsPage() {
             <Button
               type="submit"
               variant={extendData.actionType === 'SELESAI_KONTRAK' ? 'danger' : 'accent'}
-              disabled={evalLoading || !contractEvaluation || isNotNewestContract}
+              disabled={evalLoading || !contractEvaluation || contractEvaluation.status !== 'COMPLETED' || isNotNewestContract}
               className="w-full sm:w-auto"
               title={
                 isNotNewestContract
                   ? 'Hanya kontrak terbaru yang dapat ditindaklanjuti.'
-                  : !contractEvaluation
-                  ? 'Tombol terkunci: Form penilaian kontrak karyawan belum ada.'
+                  : !contractEvaluation || contractEvaluation.status !== 'COMPLETED'
+                  ? 'Tombol terkunci: Form penilaian kontrak karyawan belum selesai diisi.'
                   : undefined
               }
             >
@@ -1228,7 +1874,7 @@ export default function ContractsPage() {
                 <>
                   <Loader2 size={14} className="animate-spin" /> Memeriksa...
                 </>
-              ) : !contractEvaluation ? (
+              ) : !contractEvaluation || contractEvaluation.status !== 'COMPLETED' ? (
                 <>
                   <Lock size={14} /> Terkunci (Butuh Penilaian)
                 </>
@@ -1299,14 +1945,101 @@ export default function ContractsPage() {
               </Select>
             </Field>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={t.contracts.dateStartLabel} required>
-              <Input type="date" value={editData.startDate} onChange={setEdit('startDate')} required />
-            </Field>
-            <Field label={t.contracts.dateEndLabel} required>
-              <Input type="date" value={editData.endDate} onChange={setEdit('endDate')} required />
-            </Field>
-          </div>
+          {editData.contractType === 'PKWT' ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label={t.contracts.dateStartLabel} required>
+                  <Input
+                    type="date"
+                    value={editData.startDate}
+                    onChange={(e) => {
+                      const start = e.target.value;
+                      setEditData({
+                        ...editData,
+                        startDate: start,
+                        endDate: calculateContractEndDate(start, editDurationMonths),
+                      });
+                    }}
+                    required
+                  />
+                </Field>
+
+                <Field label={t.contracts.durationLabel} required>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditDurationMonths(6);
+                        setEditData((prev) => ({
+                          ...prev,
+                          endDate: calculateContractEndDate(prev.startDate, 6),
+                        }));
+                      }}
+                      className={cn(
+                        'flex items-center justify-center gap-1.5 py-2 px-3 rounded-[6px] text-xs font-bold border transition-colors',
+                        editDurationMonths === 6
+                          ? 'bg-accent text-white border-accent shadow-xs'
+                          : 'bg-surface border-line text-ink-2 hover:border-accent hover:text-ink'
+                      )}
+                    >
+                      {editDurationMonths === 6 && <Check size={14} />}
+                      <span>{t.contracts.duration6}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditDurationMonths(12);
+                        setEditData((prev) => ({
+                          ...prev,
+                          endDate: calculateContractEndDate(prev.startDate, 12),
+                        }));
+                      }}
+                      className={cn(
+                        'flex items-center justify-center gap-1.5 py-2 px-3 rounded-[6px] text-xs font-bold border transition-colors',
+                        editDurationMonths === 12
+                          ? 'bg-accent text-white border-accent shadow-xs'
+                          : 'bg-surface border-line text-ink-2 hover:border-accent hover:text-ink'
+                      )}
+                    >
+                      {editDurationMonths === 12 && <Check size={14} />}
+                      <span>{t.contracts.duration12}</span>
+                    </button>
+                  </div>
+                </Field>
+              </div>
+
+              {/* Auto-calculated End Date Card */}
+              <div className="rounded-[6px] border border-line bg-surface/80 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-ink-2">
+                    {t.contracts.autoEndDate}
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <Calendar size={15} className="text-accent shrink-0" />
+                    <span className="text-sm font-bold text-ink">
+                      {formatDate(editData.endDate)}
+                    </span>
+                    <Badge tone="info" className="text-[10px]">
+                      {editDurationMonths} Bulan
+                    </Badge>
+                  </div>
+                </div>
+                <div className="text-[11px] text-ink-2">
+                  {formatDate(editData.startDate)} s/d {formatDate(editData.endDate)}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t.contracts.dateStartLabel} required>
+                <Input type="date" value={editData.startDate} onChange={setEdit('startDate')} required />
+              </Field>
+              <Field label={t.contracts.dateEndLabel} required>
+                <Input type="date" value={editData.endDate} onChange={setEdit('endDate')} required />
+              </Field>
+            </div>
+          )}
           <Field label={t.contracts.notesLabel}>
             <Textarea value={editData.notes} onChange={setEdit('notes')} placeholder={t.common.notes} />
           </Field>

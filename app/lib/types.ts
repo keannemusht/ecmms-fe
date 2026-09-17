@@ -174,6 +174,7 @@ export interface ContractEvaluation {
     department: string;
     position: string;
     level?: string | null;
+    joinDate?: string | null;
   };
   contractId: string | null;
   contract?: {
@@ -195,6 +196,10 @@ export interface ContractEvaluation {
   recommendationDuration: number | null;
   evaluatorName: string | null;
   evaluatorPosition: string | null;
+  evaluatorEmail?: string | null;
+  evaluatorPhone?: string | null;
+  accessToken?: string | null;
+  tokenExpiresAt?: string | null;
   knownByName: string | null;
   knownByPosition: string | null;
   checkedByName: string | null;

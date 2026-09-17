@@ -190,8 +190,8 @@ export function computeEvaluation(scores: Record<number, number>, isStaff: boole
     recommendationDuration = 6;
   } else if (average >= 2.0) {
     grade = 'KURANG MEMUASKAN';
-    recommendationType = 'LANJUT_KONTRAK';
-    recommendationDuration = 3;
+    recommendationType = 'SELESAI_KONTRAK';
+    recommendationDuration = null;
   } else {
     grade = 'TIDAK MEMUASKAN';
     recommendationType = 'SELESAI_KONTRAK';

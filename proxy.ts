@@ -3,7 +3,11 @@ import type { NextRequest } from 'next/server';
 
 type Role = 'ADMIN' | 'MANAGEMENT' | 'USER';
 
-const PUBLIC_PATHS = ['/login'];
+const isPublicPath = (pathname: string) => {
+  if (pathname === '/login') return true;
+  if (pathname.startsWith('/evaluate/')) return true;
+  return false;
+};
 
 const roleRequirements: { pattern: RegExp; roles: Role[] }[] = [
   { pattern: /^\/users/, roles: ['ADMIN'] },
@@ -47,7 +51,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(homeFor(role), request.url));
   }
 
-  if (PUBLIC_PATHS.includes(pathname)) {
+  if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
 

@@ -1,6 +1,6 @@
 export type Role = 'ADMIN' | 'MANAGEMENT' | 'USER';
 export type EmploymentType = 'PKWT' | 'PKWTT' | 'MAGANG';
-export type EmployeeLevel = 'Director' | 'Manager' | 'Staff' | 'Non-Staff';
+export type EmployeeLevel = 'Director' | 'Manager' | 'Superintendent' | 'Supervisor' | 'Junior Supervisor' | 'Staff' | 'Worker';
 export type ContractStatus = 'AKTIF' | 'AKAN_BERAKHIR' | 'EXPIRED' | 'DIPERPANJANG' | 'RESIGN';
 export type NotificationChannel = 'EMAIL' | 'WHATSAPP' | 'IN_APP';
 export type SubmissionType = 'EXTENSION' | 'DATA_UPDATE' | 'RESIGNATION' | 'OTHER';

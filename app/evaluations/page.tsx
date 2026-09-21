@@ -1047,7 +1047,7 @@ export default function EvaluationsPage() {
     setEditingEvaluation(ev);
     setSelectedEmployeeId(ev.employeeId);
     setDocNumber(ev.documentNumber || '');
-    setIsStaff(ev.employeeLevel === 'Staff');
+    setIsStaff(ev.employeeLevel !== 'Worker' && ev.employeeLevel !== 'Non-Staff');
     try {
       const parsedScores = JSON.parse(ev.scoresJson || '{}');
       setScores(parsedScores);
@@ -1078,8 +1078,8 @@ export default function EvaluationsPage() {
   const handleSelectEmployee = (emp: Employee) => {
     setSelectedEmployeeId(emp.id);
     const lvl = (emp.level || '').toLowerCase().trim();
-    const isStaffLevel = lvl !== 'non-staff' && (lvl === 'staff' || lvl === 'manager' || lvl === 'director');
-    setIsStaff(isStaffLevel);
+    const isWorker = lvl === 'worker' || lvl === 'non-staff';
+    setIsStaff(!isWorker);
     setEmpComboboxOpen(false);
   };
 
@@ -1110,7 +1110,7 @@ export default function EvaluationsPage() {
         contractId: latestContract?.id || null,
         documentNumber: docNumber.trim() || suggestedDocNumber,
         periodEnd: latestContract?.endDate || null,
-        employeeLevel: isStaff ? 'Staff' : 'Non-Staff',
+        employeeLevel: selectedEmployee?.level || (isStaff ? 'Supervisor' : 'Worker'),
         scores,
         statements,
         evaluatorName,

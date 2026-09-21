@@ -1120,7 +1120,8 @@ export default function ContractsPage() {
                               return (c.sequence || 0) >= maxSeq;
                             })() && (
                             <Button size="sm" variant="primary" onClick={(e) => { e.stopPropagation(); openExtendModalFor(c); }}>
-                              <RefreshCw size={13} /> {t.contracts.followUp}
+                              <span>{t.contracts.followUp}</span>
+                              <ExternalLink size={12} />
                             </Button>
                           )}
                           <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEditModalFor(c); }} title={t.common.edit}>
@@ -1358,10 +1359,10 @@ export default function ContractsPage() {
                     <Link
                       href={`/evaluate/${contractEvaluation.accessToken}`}
                       target="_blank"
-                      className="flex items-center gap-1.5 rounded-[5px] border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition-colors shadow-xs"
+                      className="btn btn-primary btn-sm gap-1.5 shadow-xs"
                     >
                       <Printer size={13} />
-                      <span>Cetak Form TTD Basah</span>
+                      <span>Cetak Form</span>
                       <ExternalLink size={11} />
                     </Link>
                   )}

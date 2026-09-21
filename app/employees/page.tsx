@@ -86,7 +86,7 @@ export default function EmployeesPage() {
     phone: '',
     department: 'Produksi',
     position: '',
-    level: 'Staff',
+    level: 'Worker',
     employmentType: 'PKWT',
     joinDate: new Date().toISOString().split('T')[0],
   });
@@ -1010,8 +1010,10 @@ export default function EmployeesPage() {
               <Select value={formData.level} onChange={set('level')}>
                 <option value="Director">Director</option>
                 <option value="Manager">Manager</option>
-                <option value="Staff">Staff</option>
-                <option value="Non-Staff">Non-Staff</option>
+                <option value="Superintendent">Superintendent</option>
+                <option value="Supervisor">Supervisor</option>
+                <option value="Junior Supervisor">Junior Supervisor</option>
+                <option value="Worker">Worker</option>
               </Select>
             </Field>
             <Field label={t.employees.contractType} required>

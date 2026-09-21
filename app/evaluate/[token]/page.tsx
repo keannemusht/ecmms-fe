@@ -449,7 +449,7 @@ export default function PublicEvaluationPage() {
                 <div>
                   <div className="text-[10px] uppercase font-semibold text-ink-2">Tanggal Bergabung</div>
                   <div className="font-semibold text-ink mt-0.5">{formatDate(evaluation.employee?.joinDate)}</div>
-                  <div className="text-[11px] text-ink-2">Level: {evaluation.employee?.level || 'Non-Staff'}</div>
+                  <div className="text-[11px] text-ink-2">Level: {evaluation.employee?.level || 'Worker'}</div>
                 </div>
 
                 <div>

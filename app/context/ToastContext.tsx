@@ -7,52 +7,95 @@ import 'react-toastify/dist/ReactToastify.css';
 import { cn, Modal, Button } from '../components/ui';
 import { useUI } from './UIContext';
 
-interface ConfirmOptions {
+export { toast };
+
+export interface ConfirmOptions {
   title?: string;
   confirmLabel?: string;
   cancelLabel?: string;
   danger?: boolean;
 }
 
-interface ToastContextType {
-  success: (message: string) => void;
-  error: (message: string) => void;
-  info: (message: string) => void;
-  warning: (message: string) => void;
+export interface ToastContextType {
+  success: (message: React.ReactNode, title?: string) => void;
+  error: (message: React.ReactNode, title?: string) => void;
+  info: (message: React.ReactNode, title?: string) => void;
+  warning: (message: React.ReactNode, title?: string) => void;
   confirm: (message: string, options?: ConfirmOptions) => Promise<boolean>;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
-const TOAST_CLASS =
-  '!rounded-[10px] !border !bg-surface !p-3.5 !text-[13px] !font-medium !text-ink !shadow-2xl !cursor-default';
-
-const TOAST_BORDER: Record<string, string> = {
-  success: '!border-active/30',
-  error: '!border-expired/30',
-  info: '!border-info/30',
-  warning: '!border-warning/30',
+const DEFAULT_TITLES: Record<string, string> = {
+  success: 'Berhasil',
+  error: 'Gagal',
+  warning: 'Peringatan',
+  info: 'Informasi',
 };
 
-const TOAST_PROGRESS: Record<string, string> = {
-  success: '!bg-active',
-  error: '!bg-expired',
-  info: '!bg-info',
-  warning: '!bg-warning',
+const TOAST_ICON: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
+  success: { icon: CheckCircle2, color: 'text-active', bg: 'bg-active/15' },
+  error: { icon: XCircle, color: 'text-expired', bg: 'bg-expired/15' },
+  info: { icon: Info, color: 'text-info', bg: 'bg-info/15' },
+  warning: { icon: AlertTriangle, color: 'text-warning', bg: 'bg-warning/15' },
 };
 
-const TOAST_ICON: Record<string, { icon: React.ElementType; color: string }> = {
-  success: { icon: CheckCircle2, color: 'text-active' },
-  error: { icon: XCircle, color: 'text-expired' },
-  info: { icon: Info, color: 'text-info' },
-  warning: { icon: AlertTriangle, color: 'text-warning' },
-};
-
-function ToastIcon({ type }: { type: string }) {
+function ToastIconBadge({ type }: { type: string }) {
   const meta = TOAST_ICON[type] ?? TOAST_ICON.info;
   const Icon = meta.icon;
-  return <Icon size={18} className={cn('mt-0.5 shrink-0', meta.color)} />;
+  return (
+    <span
+      className={cn(
+        'inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full',
+        meta.bg,
+        meta.color
+      )}
+    >
+      <Icon size={12} strokeWidth={2.6} />
+    </span>
+  );
 }
+
+function ToastBody({
+  type,
+  title,
+  message,
+}: {
+  type: 'success' | 'error' | 'info' | 'warning';
+  title?: string;
+  message: React.ReactNode;
+}) {
+  const displayTitle = title || DEFAULT_TITLES[type];
+  const hasDistinctMessage = message && message !== displayTitle;
+
+  return (
+    <div className="flex w-full flex-col min-w-0 pr-1 select-text">
+      {/* Baris 1: Judul dengan icon di sebelah kanannya */}
+      <div className="flex items-center gap-1.5 leading-none">
+        <span className="font-bold text-[13.5px] text-ink">{displayTitle}</span>
+        <ToastIconBadge type={type} />
+      </div>
+
+      {/* Baris 2: Pesan/Deskripsi rapi di baris baru */}
+      {hasDistinctMessage && (
+        <div className="text-[12px] font-normal leading-relaxed text-ink-2 mt-1">
+          {message}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export const notifyToast = {
+  success: (message: React.ReactNode, title?: string) =>
+    toast.success(<ToastBody type="success" title={title} message={message} />, { icon: false }),
+  error: (message: React.ReactNode, title?: string) =>
+    toast.error(<ToastBody type="error" title={title} message={message} />, { icon: false }),
+  info: (message: React.ReactNode, title?: string) =>
+    toast.info(<ToastBody type="info" title={title} message={message} />, { icon: false }),
+  warning: (message: React.ReactNode, title?: string) =>
+    toast.warning(<ToastBody type="warning" title={title} message={message} />, { icon: false }),
+};
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const { t } = useUI();
@@ -64,19 +107,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     | null
   >(null);
 
-  const notify = useCallback((type: 'success' | 'error' | 'info' | 'warning', message: string) => {
-    toast[type](message, {
-      icon: <ToastIcon type={type} />,
-      className: cn(TOAST_CLASS, TOAST_BORDER[type]),
-      progressClassName: TOAST_PROGRESS[type],
-    });
+  const notify = useCallback((type: 'success' | 'error' | 'info' | 'warning', message: React.ReactNode, title?: string) => {
+    notifyToast[type](message, title);
   }, []);
 
   const value: ToastContextType = {
-    success: (message) => notify('success', message),
-    error: (message) => notify('error', message),
-    info: (message) => notify('info', message),
-    warning: (message) => notify('warning', message),
+    success: (message, title) => notify('success', message, title),
+    error: (message, title) => notify('error', message, title),
+    info: (message, title) => notify('info', message, title),
+    warning: (message, title) => notify('warning', message, title),
     confirm: (message, options) =>
       new Promise<boolean>((resolve) => {
         setConfirmState({ message, ...options, resolve });
@@ -98,7 +137,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         closeOnClick
         pauseOnHover
         hideProgressBar={false}
-        toastClassName={cn(TOAST_CLASS)}
       />
 
       <Modal

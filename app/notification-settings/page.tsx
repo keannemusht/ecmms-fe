@@ -127,9 +127,10 @@ export default function NotificationSettingsPage() {
   const toggleActive = async (rule: NotificationRule) => {
     try {
       await api.put(`/notifications/rules/${rule.id}`, { isActive: !rule.isActive });
+      toast.success(!rule.isActive ? `Aturan "${rule.name}" diaktifkan` : `Aturan "${rule.name}" dinonaktifkan`, 'Status Diperbarui');
       fetchRules();
     } catch (err) {
-      toast.error(getApiError(err));
+      toast.error(getApiError(err), 'Gagal Mengubah Status');
     }
   };
 
@@ -140,8 +141,10 @@ export default function NotificationSettingsPage() {
     try {
       if (editing) {
         await api.put(`/notifications/rules/${editing.id}`, form);
+        toast.success(`Aturan "${form.name}" berhasil diperbarui!`, 'Berhasil Disimpan');
       } else {
         await api.post('/notifications/rules', form);
+        toast.success(`Aturan "${form.name}" berhasil dibuat!`, 'Berhasil Disimpan');
       }
       setFormSuccess(t.common.success);
       fetchRules();
@@ -150,7 +153,9 @@ export default function NotificationSettingsPage() {
         setFormSuccess('');
       }, 900);
     } catch (err) {
-      setFormError(getApiError(err));
+      const msg = getApiError(err);
+      toast.error(msg, 'Gagal Menyimpan Aturan');
+      setFormError(msg);
     }
   };
 

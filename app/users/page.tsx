@@ -5,6 +5,7 @@ import { Plus, Pencil, Trash2, Power, UserCog, Search, Check, ChevronsUpDown, X 
 import api from '../lib/api';
 import { useUI } from '../context/UIContext';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import AppShell from '../components/AppShell';
 import { Card, PageHeader, Badge, Button, Modal, Field, Input, Select, Pagination, cn } from '../components/ui';
 import { initials, avatarHue, getApiError } from '../lib/helpers';
@@ -171,6 +172,7 @@ function SearchableEmployeeSelect({
 export default function UsersPage() {
   const { t } = useUI();
   const { user } = useAuth();
+  const toast = useToast();
   const PAGE_SIZE = 10;
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -200,7 +202,9 @@ export default function UsersPage() {
       const res = await api.get('/users');
       setUsers(res.data || []);
     } catch (err) {
-      setPageMsg({ type: 'error', text: getApiError(err) });
+      const msg = getApiError(err);
+      toast.error(msg, 'Gagal Memuat Pengguna');
+      setPageMsg({ type: 'error', text: msg });
     } finally {
       setLoading(false);
     }
@@ -266,6 +270,7 @@ export default function UsersPage() {
         };
         if (modal.password) payload.password = modal.password;
         await api.put(`/users/${modal.editing.id}`, payload);
+        toast.success(`Data akun ${modal.name} berhasil diperbarui!`, 'Berhasil');
       } else {
         await api.post('/users', {
           name: modal.name,
@@ -274,22 +279,28 @@ export default function UsersPage() {
           role: modal.role,
           employeeId: modal.employeeId || null,
         });
+        toast.success(`Pengguna baru ${modal.name} berhasil dibuat!`, 'Berhasil');
       }
       setModal((m) => ({ ...m, open: false, saving: false }));
       setPageMsg({ type: 'success', text: t.common.success });
       fetchUsers();
     } catch (err) {
-      setModal((m) => ({ ...m, saving: false, error: getApiError(err) }));
+      const msg = getApiError(err);
+      toast.error(msg, 'Gagal Menyimpan Pengguna');
+      setModal((m) => ({ ...m, saving: false, error: msg }));
     }
   };
 
   const toggleActive = async (u: AdminUser) => {
     try {
       await api.put(`/users/${u.id}`, { name: u.name, role: u.role, isActive: !u.isActive });
+      toast.success(!u.isActive ? `Akun ${u.name} berhasil diaktifkan` : `Akun ${u.name} dinonaktifkan`, 'Status Diperbarui');
       setPageMsg({ type: 'success', text: t.common.success });
       fetchUsers();
     } catch (err) {
-      setPageMsg({ type: 'error', text: getApiError(err) });
+      const msg = getApiError(err);
+      toast.error(msg, 'Gagal Mengubah Status');
+      setPageMsg({ type: 'error', text: msg });
     }
   };
 
@@ -297,11 +308,14 @@ export default function UsersPage() {
     if (!confirmDelete) return;
     try {
       await api.delete(`/users/${confirmDelete.id}`);
+      toast.success(`Akun ${confirmDelete.name} berhasil dihapus!`, 'Berhasil Dihapus');
       setConfirmDelete(null);
       setPageMsg({ type: 'success', text: t.common.success });
       fetchUsers();
     } catch (err) {
-      setPageMsg({ type: 'error', text: getApiError(err) });
+      const msg = getApiError(err);
+      toast.error(msg, 'Gagal Menghapus Akun');
+      setPageMsg({ type: 'error', text: msg });
       setConfirmDelete(null);
     }
   };

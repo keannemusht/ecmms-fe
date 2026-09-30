@@ -68,9 +68,10 @@ export default function NotificationsPage() {
       const res = await api.post(`/notifications/in-app/${n.id}/send-whatsapp`);
       const link: string = res.data.link;
       window.open(link, '_blank');
+      toast.info('Membuka tautan WhatsApp untuk mengirim pesan...', 'WhatsApp Siap');
       markAsRead(n.id);
     } catch (err) {
-      console.error('Failed to build WhatsApp link:', err);
+      toast.error(getApiError(err), 'Gagal Menghubungkan WhatsApp');
     }
   };
 
@@ -79,8 +80,9 @@ export default function NotificationsPage() {
       await api.put('/notifications/in-app/read-all');
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
+      toast.success('Semua notifikasi telah ditandai dibaca.', 'Notifikasi');
     } catch (err) {
-      console.error('Failed to mark all read:', err);
+      toast.error(getApiError(err), 'Gagal Memperbarui Notifikasi');
     }
   };
 

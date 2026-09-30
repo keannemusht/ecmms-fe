@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { User, CalendarClock, Send, AlertTriangle, BadgeCheck } from 'lucide-react';
 import api from '../lib/api';
 import { useUI } from '../context/UIContext';
+import { useToast } from '../context/ToastContext';
 import AppShell from '../components/AppShell';
 import { Card, PageHeader, Badge, Button, Modal, Field, Textarea, ProgressBar, cn } from '../components/ui';
 import { formatDate, daysUntil, initials, avatarHue, contractStatusTone, contractStatusKey, getApiError } from '../lib/helpers';
@@ -11,6 +12,7 @@ import { Employee } from '../lib/types';
 
 export default function MyProfilePage() {
   const { t } = useUI();
+  const toast = useToast();
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -47,6 +49,7 @@ export default function MyProfilePage() {
     setFormSuccess('');
     try {
       await api.post('/submissions', { submissionType: 'EXTENSION', reason });
+      toast.success(t.submissions.successMsg || 'Pengajuan perpanjangan kontrak berhasil dikirim ke HRD!', 'Pengajuan Terkirim');
       setFormSuccess(t.submissions.successMsg);
       setTimeout(() => {
         setShowModal(false);
@@ -54,7 +57,9 @@ export default function MyProfilePage() {
         setFormSuccess('');
       }, 1000);
     } catch (err) {
-      setFormError(getApiError(err));
+      const msg = getApiError(err);
+      toast.error(msg, 'Gagal Mengirim Pengajuan');
+      setFormError(msg);
     }
   };
 

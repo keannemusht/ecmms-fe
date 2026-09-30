@@ -20,6 +20,7 @@ import {
 import api from '../lib/api';
 import { useUI } from '../context/UIContext';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import AppShell from '../components/AppShell';
 import {
   Card,
@@ -888,6 +889,7 @@ export function BataraOfficialDocument({
 export default function EvaluationsPage() {
   const { t, lang } = useUI();
   const { user } = useAuth();
+  const toast = useToast();
   const PAGE_SIZE = 10;
 
   const [mounted, setMounted] = useState(false);
@@ -950,7 +952,9 @@ export default function EvaluationsPage() {
       const res = await api.get(`/evaluations?${params.toString()}`);
       setEvaluations(res.data?.evaluations || []);
     } catch (err) {
-      setPageMsg({ type: 'error', text: getApiError(err) });
+      const msg = getApiError(err);
+      toast.error(msg, 'Gagal Memuat Evaluasi');
+      setPageMsg({ type: 'error', text: msg });
     } finally {
       setLoading(false);
     }
@@ -1098,6 +1102,7 @@ export default function EvaluationsPage() {
     e.preventDefault();
     if (!selectedEmployeeId) {
       setModalError(t.evaluations.selectEmployeeRequired);
+      toast.warning(t.evaluations.selectEmployeeRequired, 'Perhatian');
       return;
     }
 
@@ -1129,15 +1134,19 @@ export default function EvaluationsPage() {
 
       if (editingEvaluation) {
         await api.put(`/evaluations/${editingEvaluation.id}`, payload);
+        toast.success('Dokumen penilaian kontrak berhasil diperbarui!', 'Berhasil Disimpan');
       } else {
         await api.post('/evaluations', payload);
+        toast.success('Dokumen penilaian kontrak berhasil dibuat!', 'Berhasil Disimpan');
       }
 
       setShowModal(false);
       setPageMsg({ type: 'success', text: t.evaluations.saveSuccess });
       fetchEvaluations();
     } catch (err) {
-      setModalError(getApiError(err));
+      const msg = getApiError(err);
+      toast.error(msg, 'Gagal Menyimpan Evaluasi');
+      setModalError(msg);
     } finally {
       setSaving(false);
     }
@@ -1147,11 +1156,14 @@ export default function EvaluationsPage() {
     if (!confirmDelete) return;
     try {
       await api.delete(`/evaluations/${confirmDelete.id}`);
+      toast.success(t.evaluations.deleteSuccess || 'Penilaian kontrak berhasil dihapus!', 'Berhasil Dihapus');
       setConfirmDelete(null);
       setPageMsg({ type: 'success', text: t.evaluations.deleteSuccess });
       fetchEvaluations();
     } catch (err) {
-      setPageMsg({ type: 'error', text: getApiError(err) });
+      const msg = getApiError(err);
+      toast.error(msg, 'Gagal Menghapus Evaluasi');
+      setPageMsg({ type: 'error', text: msg });
       setConfirmDelete(null);
     }
   };

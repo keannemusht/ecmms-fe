@@ -5,6 +5,7 @@ import { Plus, CheckCircle2, XCircle, Clock, Send } from 'lucide-react';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { useUI } from '../context/UIContext';
+import { useToast } from '../context/ToastContext';
 import AppShell from '../components/AppShell';
 import { Card, PageHeader, Badge, Button, Modal, Field, Select, Textarea, Stepper, cn } from '../components/ui';
 import { formatDateTime, getApiError } from '../lib/helpers';
@@ -39,6 +40,7 @@ function stepIndex(status: string): number {
 export default function SubmissionsPage() {
   const { user } = useAuth();
   const { t } = useUI();
+  const toast = useToast();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -76,6 +78,7 @@ export default function SubmissionsPage() {
     setFormSuccess('');
     try {
       await api.post('/submissions', { submissionType, reason });
+      toast.success(t.submissions.successMsg || 'Pengajuan baru berhasil dikirimkan!', 'Pengajuan Terkirim');
       setFormSuccess(t.submissions.successMsg);
       fetchSubmissions();
       setTimeout(() => {
@@ -84,7 +87,9 @@ export default function SubmissionsPage() {
         setFormSuccess('');
       }, 1000);
     } catch (err) {
-      setFormError(getApiError(err));
+      const msg = getApiError(err);
+      toast.error(msg, 'Gagal Mengirim Pengajuan');
+      setFormError(msg);
     }
   };
 
@@ -95,6 +100,8 @@ export default function SubmissionsPage() {
     setFormSuccess('');
     try {
       await api.put(`/submissions/${selectedSub.id}/status`, { status: processStatus, remarks });
+      const actionLabel = processStatus === 'DISETUJUI' ? 'disetujui' : processStatus === 'DITOLAK' ? 'ditolak' : 'diproses';
+      toast.success(`Pengajuan berhasil ${actionLabel}!`, 'Status Diperbarui');
       setFormSuccess(t.common.success);
       fetchSubmissions();
       setTimeout(() => {
@@ -102,7 +109,9 @@ export default function SubmissionsPage() {
         setFormSuccess('');
       }, 1000);
     } catch (err) {
-      setFormError(getApiError(err));
+      const msg = getApiError(err);
+      toast.error(msg, 'Gagal Memproses Pengajuan');
+      setFormError(msg);
     }
   };
 

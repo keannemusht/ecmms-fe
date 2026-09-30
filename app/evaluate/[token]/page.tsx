@@ -27,9 +27,12 @@ import {
 import { BataraOfficialDocument } from '../../evaluations/page';
 import { ContractEvaluation } from '../../lib/types';
 import { formatDate } from '../../lib/helpers';
+import { formatEmployeeLevel } from '../../lib/employeeLevel';
 import { cn } from '../../components/ui';
+import { useToast } from '../../context/ToastContext';
 
 export default function PublicEvaluationPage() {
+  const toast = useToast();
   const params = useParams();
   const token = params?.token as string;
 
@@ -117,7 +120,7 @@ export default function PublicEvaluationPage() {
   const isStaff = useMemo(() => {
     if (!evaluation?.employee?.level) return true;
     const lvl = evaluation.employee.level.toLowerCase();
-    return lvl.includes('staff') || lvl.includes('supervisor') || lvl.includes('manager') || lvl.includes('leader');
+    return lvl.includes('staff') || lvl.includes('supervisor') || lvl.includes('manager') || lvl.includes('leader') || lvl.includes('director') || lvl.includes('superintendent') || lvl.includes('suptend');
   }, [evaluation]);
 
   // Compute live score
@@ -174,11 +177,15 @@ export default function PublicEvaluationPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAllAnswered) {
-      setError(`Harap lengkapi semua penilaian (${answeredCount} dari ${totalRequiredItems} butir telah diisi).`);
+      const msg = `Harap lengkapi semua penilaian (${answeredCount} dari ${totalRequiredItems} butir telah diisi).`;
+      setError(msg);
+      toast.warning(msg, 'Form Belum Lengkap');
       return;
     }
     if (!evaluatorName.trim()) {
-      setError('Nama atasan penilai wajib diisi.');
+      const msg = 'Nama atasan penilai wajib diisi.';
+      setError(msg);
+      toast.warning(msg, 'Perhatian');
       return;
     }
 
@@ -195,16 +202,20 @@ export default function PublicEvaluationPage() {
 
       setEvaluation(res.data.evaluation);
       setSuccess(true);
+      toast.success('Formulir evaluasi kontrak kerja berhasil dikirimkan!', 'Terima Kasih');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
       console.error('Failed to submit evaluation:', err);
-      setError(err?.response?.data?.error || 'Gagal menyimpan penilaian. Silakan coba lagi.');
+      const msg = err?.response?.data?.error || 'Gagal menyimpan penilaian. Silakan coba lagi.';
+      setError(msg);
+      toast.error(msg, 'Gagal Mengirim Penilaian');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handlePrint = () => {
+    toast.info('Membuka dialog cetak dokumen...', 'Cetak');
     window.print();
   };
 
@@ -449,7 +460,7 @@ export default function PublicEvaluationPage() {
                 <div>
                   <div className="text-[10px] uppercase font-semibold text-ink-2">Tanggal Bergabung</div>
                   <div className="font-semibold text-ink mt-0.5">{formatDate(evaluation.employee?.joinDate)}</div>
-                  <div className="text-[11px] text-ink-2">Level: {evaluation.employee?.level || 'Worker'}</div>
+                  <div className="text-[11px] text-ink-2">Level: {formatEmployeeLevel(evaluation.employee?.level) || 'Worker'}</div>
                 </div>
 
                 <div>

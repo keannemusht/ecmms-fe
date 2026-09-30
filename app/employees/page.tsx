@@ -38,7 +38,7 @@ import {
 import { formatDate, contractStatusTone, contractStatusKey, initials, avatarHue, getApiError, parseExcelDate, pickExcelValue, pickExcelJoinDate, toISODate } from '../lib/helpers';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
 import { Employee, ReferenceItem } from '../lib/types';
-import { determineEmployeeLevel } from '../lib/employeeLevel';
+import { determineEmployeeLevel, formatEmployeeLevel } from '../lib/employeeLevel';
 
 const STATUS_FILTERS = [
   { labelKey: 'allStatus', value: '' },
@@ -266,8 +266,10 @@ export default function EmployeesPage() {
     try {
       if (editing) {
         await api.put(`/employees/${editing.id}`, formData);
+        toast.success(`Data karyawan ${formData.name} berhasil diperbarui!`, 'Berhasil');
       } else {
         await api.post('/employees', formData);
+        toast.success(`Karyawan baru ${formData.name} berhasil ditambahkan!`, 'Berhasil');
       }
       setFormSuccess(t.common.success);
       fetchEmployees();
@@ -276,7 +278,9 @@ export default function EmployeesPage() {
         setFormSuccess('');
       }, 1000);
     } catch (err) {
-      setFormError(getApiError(err));
+      const msg = getApiError(err);
+      toast.error(msg, 'Gagal Menyimpan Karyawan');
+      setFormError(msg);
     }
   };
 
@@ -449,9 +453,10 @@ export default function EmployeesPage() {
     if (!ok) return;
     try {
       await api.delete(`/employees/${id}`);
+      toast.success(`Data karyawan ${name} berhasil dihapus!`, 'Berhasil Dihapus');
       fetchEmployees();
     } catch (err) {
-      toast.error(getApiError(err));
+      toast.error(getApiError(err), 'Gagal Menghapus Karyawan');
     }
   };
 
@@ -865,7 +870,7 @@ export default function EmployeesPage() {
                           <span>{emp.position}</span>
                           {emp.level && (
                             <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-semibold text-ink-2 border border-border">
-                              {emp.level}
+                              {formatEmployeeLevel(emp.level)}
                             </span>
                           )}
                         </div>
@@ -1010,9 +1015,9 @@ export default function EmployeesPage() {
               <Select value={formData.level} onChange={set('level')}>
                 <option value="Director">Director</option>
                 <option value="Manager">Manager</option>
-                <option value="Superintendent">Superintendent</option>
+                <option value="Superintendent">Suptend</option>
                 <option value="Supervisor">Supervisor</option>
-                <option value="Junior Supervisor">Junior Supervisor</option>
+                <option value="Junior Supervisor">Jr Supervisor</option>
                 <option value="Worker">Worker</option>
               </Select>
             </Field>

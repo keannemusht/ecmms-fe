@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Lock, Mail, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useUI } from '../context/UIContext';
+import { useToast } from '../context/ToastContext';
 import { Button, Input, Field, cn } from '../components/ui';
 import { getApiError } from '../lib/helpers';
 
@@ -50,6 +51,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const { t, lang, toggleLang } = useUI();
+  const toast = useToast();
   const router = useRouter();
 
   const redirectAfterLogin = () => {
@@ -63,9 +65,12 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await login(email, password);
+      toast.success('Mengalihkan ke Dashboard...', 'Login Berhasil');
       redirectAfterLogin();
     } catch (err) {
-      setError(getApiError(err));
+      const msg = getApiError(err);
+      setError(msg);
+      toast.error(msg, 'Gagal Masuk');
     } finally {
       setIsLoading(false);
     }

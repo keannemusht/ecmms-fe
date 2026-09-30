@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, Power } from 'lucide-react';
 import api from '../lib/api';
 import { useUI } from '../context/UIContext';
+import { useToast } from '../context/ToastContext';
 import AppShell from './AppShell';
 import { Card, PageHeader, Badge, Button, Modal, Field, Input, EmptyState, Pagination } from './ui';
 import { formatDate, getApiError } from '../lib/helpers';
@@ -18,6 +19,7 @@ interface Props {
 
 export default function ReferenceData({ endpoint, dict, icon: Icon, addIcon: AddIcon }: Props) {
   const { t } = useUI();
+  const toast = useToast();
   const d = t[dict];
 
   const PAGE_SIZE = 10;
@@ -41,7 +43,9 @@ export default function ReferenceData({ endpoint, dict, icon: Icon, addIcon: Add
       const res = await api.get(endpoint);
       setItems(res.data || []);
     } catch (err) {
-      setPageMsg({ type: 'error', text: getApiError(err) });
+      const msg = getApiError(err);
+      toast.error(msg, 'Gagal Memuat Data');
+      setPageMsg({ type: 'error', text: msg });
     } finally {
       setLoading(false);
     }
@@ -66,31 +70,39 @@ export default function ReferenceData({ endpoint, dict, icon: Icon, addIcon: Add
     e.preventDefault();
     if (!modal.name.trim()) {
       setModal({ ...modal, error: t.common.required });
+      toast.warning(t.common.required, 'Form Belum Lengkap');
       return;
     }
     setModal({ ...modal, saving: true, error: '' });
     try {
       if (modal.editing) {
         await api.put(`${endpoint}/${modal.editing.id}`, { name: modal.name.trim() });
+        toast.success(`${modal.name.trim()} berhasil diperbarui!`, 'Berhasil');
         setPageMsg({ type: 'success', text: t.common.success });
       } else {
         await api.post(endpoint, { name: modal.name.trim() });
+        toast.success(`${modal.name.trim()} berhasil ditambahkan!`, 'Berhasil');
         setPageMsg({ type: 'success', text: t.common.success });
       }
       setModal({ ...modal, open: false, saving: false });
       fetchItems();
     } catch (err) {
-      setModal({ ...modal, saving: false, error: getApiError(err) });
+      const msg = getApiError(err);
+      toast.error(msg, 'Gagal Menyimpan');
+      setModal({ ...modal, saving: false, error: msg });
     }
   };
 
   const toggleActive = async (item: ReferenceItem) => {
     try {
       await api.put(`${endpoint}/${item.id}`, { isActive: !item.isActive });
+      toast.success(!item.isActive ? `${item.name} berhasil diaktifkan` : `${item.name} dinonaktifkan`, 'Status Diperbarui');
       setPageMsg({ type: 'success', text: t.common.success });
       fetchItems();
     } catch (err) {
-      setPageMsg({ type: 'error', text: getApiError(err) });
+      const msg = getApiError(err);
+      toast.error(msg, 'Gagal Mengubah Status');
+      setPageMsg({ type: 'error', text: msg });
     }
   };
 
@@ -98,11 +110,14 @@ export default function ReferenceData({ endpoint, dict, icon: Icon, addIcon: Add
     if (!confirmDelete) return;
     try {
       await api.delete(`${endpoint}/${confirmDelete.id}`);
+      toast.success(`${confirmDelete.name} berhasil dihapus!`, 'Berhasil Dihapus');
       setConfirmDelete(null);
       setPageMsg({ type: 'success', text: t.common.success });
       fetchItems();
     } catch (err) {
-      setPageMsg({ type: 'error', text: getApiError(err) });
+      const msg = getApiError(err);
+      toast.error(msg, 'Gagal Menghapus');
+      setPageMsg({ type: 'error', text: msg });
       setConfirmDelete(null);
     }
   };

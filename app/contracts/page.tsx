@@ -36,6 +36,7 @@ import {
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { useUI } from '../context/UIContext';
+import { useToast } from '../context/ToastContext';
 import AppShell from '../components/AppShell';
 import {
   Card,
@@ -78,6 +79,7 @@ const defaultEndDate = calculateContractEndDate(defaultStartDate, 12);
 export default function ContractsPage() {
   const { user } = useAuth();
   const { t } = useUI();
+  const toast = useToast();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [statusFilter, setStatusFilter] = useState('');
@@ -322,6 +324,7 @@ export default function ContractsPage() {
     setFormSuccess('');
     try {
       await api.post('/contracts', newContractData);
+      toast.success('Kontrak baru berhasil dibuat!', 'Berhasil');
       setFormSuccess(t.common.success);
       fetchContracts();
       setTimeout(() => {
@@ -329,7 +332,9 @@ export default function ContractsPage() {
         setFormSuccess('');
       }, 1000);
     } catch (err) {
-      setFormError(getApiError(err));
+      const msg = getApiError(err);
+      toast.error(msg, 'Gagal Menyimpan Kontrak');
+      setFormError(msg);
     }
   };
 
@@ -337,11 +342,15 @@ export default function ContractsPage() {
     e.preventDefault();
     if (!selectedContract) return;
     if (!contractEvaluation) {
-      setFormError('Tindak lanjut terkunci: Karyawan belum memiliki form penilaian kontrak.');
+      const err = 'Tindak lanjut terkunci: Karyawan belum memiliki form penilaian kontrak.';
+      toast.warning(err, 'Penilaian Diperlukan');
+      setFormError(err);
       return;
     }
     if (isNotNewestContract) {
-      setFormError('Tindak lanjut hanya dapat diproses pada kontrak terbaru karyawan.');
+      const err = 'Tindak lanjut hanya dapat diproses pada kontrak terbaru karyawan.';
+      toast.warning(err, 'Peringatan');
+      setFormError(err);
       return;
     }
     setFormError('');
@@ -353,6 +362,7 @@ export default function ContractsPage() {
         newContractNumber: finalContractNumber,
       };
       await api.post(`/contracts/${selectedContract.id}/extend`, payload);
+      toast.success('Tindak lanjut kontrak berhasil diproses!', 'Berhasil');
       setFormSuccess(t.common.success);
       fetchContracts();
       fetchEmployees();
@@ -361,7 +371,9 @@ export default function ContractsPage() {
         setFormSuccess('');
       }, 1000);
     } catch (err) {
-      setFormError(getApiError(err));
+      const msg = getApiError(err);
+      toast.error(msg, 'Gagal Memproses Tindak Lanjut');
+      setFormError(msg);
     }
   };
 
@@ -398,8 +410,11 @@ export default function ContractsPage() {
       const res = await api.post(`/contracts/${c.id}/send-whatsapp`);
       const link: string = res.data.link;
       window.open(link, '_blank');
+      toast.info('Membuka tautan WhatsApp untuk mengirim pesan notifikasi...', 'WhatsApp Siap');
     } catch (err) {
-      setFormError(getApiError(err));
+      const msg = getApiError(err);
+      toast.error(msg, 'Gagal Menghubungkan WhatsApp');
+      setFormError(msg);
     } finally {
       setWaSending(false);
     }
@@ -412,6 +427,7 @@ export default function ContractsPage() {
     setFormSuccess('');
     try {
       await api.put(`/contracts/${selectedContract.id}`, editData);
+      toast.success('Data kontrak berhasil diperbarui!', 'Berhasil');
       setFormSuccess(t.common.success);
       fetchContracts();
       setTimeout(() => {
@@ -419,7 +435,9 @@ export default function ContractsPage() {
         setFormSuccess('');
       }, 1000);
     } catch (err) {
-      setFormError(getApiError(err));
+      const msg = getApiError(err);
+      toast.error(msg, 'Gagal Memperbarui Kontrak');
+      setFormError(msg);
     }
   };
 
@@ -427,10 +445,13 @@ export default function ContractsPage() {
     if (!confirmDelete) return;
     try {
       await api.delete(`/contracts/${confirmDelete.id}`);
+      toast.success('Kontrak berhasil dihapus!', 'Berhasil');
       setConfirmDelete(null);
       fetchContracts();
     } catch (err) {
-      setFormError(getApiError(err));
+      const msg = getApiError(err);
+      toast.error(msg, 'Gagal Menghapus Kontrak');
+      setFormError(msg);
       setConfirmDelete(null);
     }
   };
@@ -463,11 +484,15 @@ export default function ContractsPage() {
   const handleSendEvaluationLink = async (channel: 'EMAIL' | 'WHATSAPP' | 'COPY') => {
     if (!selectedContract?.employeeId) return;
     if (!evaluatorForm.evaluatorName.trim()) {
-      setSendLinkError('Nama atasan penilai wajib diisi.');
+      const err = 'Nama atasan penilai wajib diisi.';
+      toast.warning(err, 'Form Belum Lengkap');
+      setSendLinkError(err);
       return;
     }
     if (channel === 'EMAIL' && !evaluatorForm.evaluatorEmail?.trim()) {
-      setSendLinkError('Email atasan penilai wajib diisi untuk mengirim via Email.');
+      const err = 'Email atasan penilai wajib diisi untuk mengirim via Email.';
+      toast.warning(err, 'Form Belum Lengkap');
+      setSendLinkError(err);
       return;
     }
 
@@ -506,6 +531,7 @@ export default function ContractsPage() {
         await navigator.clipboard.writeText(fullUrl);
         setCopiedLink(true);
         setTimeout(() => setCopiedLink(false), 3000);
+        toast.success('Tautan form evaluasi berhasil disalin ke clipboard!', 'Tautan Disalin');
         setSendLinkSuccess('Tautan form evaluasi berhasil disalin ke clipboard!');
       } else if (channel === 'WHATSAPP') {
         const waUrl = res.data.whatsappUrl;
@@ -516,6 +542,7 @@ export default function ContractsPage() {
           } else {
             window.location.href = waUrl;
           }
+          toast.info('Tautan WhatsApp evaluasi siap dikirimkan.', 'WhatsApp Siap');
           setSendLinkSuccess(
             evaluatorForm.evaluatorPhone?.trim()
               ? `Tautan WhatsApp siap untuk ${evaluatorForm.evaluatorPhone}. Jika tab WhatsApp belum terbuka otomatis, silakan klik tombol di bawah.`
@@ -525,21 +552,27 @@ export default function ContractsPage() {
           setLastWhatsAppUrl('');
           if (waPopup) waPopup.close();
           await navigator.clipboard.writeText(fullUrl);
+          toast.success('Tautan evaluasi berhasil dibuat dan disalin ke clipboard.', 'Berhasil');
           setSendLinkSuccess('Tautan berhasil dibuat dan disalin ke clipboard.');
         }
       } else if (channel === 'EMAIL') {
         setLastWhatsAppUrl('');
         if (waPopup) waPopup.close();
         if (res.data.emailSent) {
+          toast.success(`Email undangan evaluasi berhasil dikirimkan ke ${evaluatorForm.evaluatorEmail}`, 'Email Terkirim');
           setSendLinkSuccess(`Email undangan evaluasi berhasil dikirimkan ke ${evaluatorForm.evaluatorEmail}`);
         } else {
-          setSendLinkSuccess(`Tautan evaluasi siap: ${res.data.emailError || 'Email tidak terkirim, gunakan opsi WhatsApp atau Salin Tautan di bawah.'}`);
+          const errMsg = res.data.emailError || 'Email tidak terkirim, gunakan opsi WhatsApp atau Salin Tautan.';
+          toast.warning(errMsg, 'Perhatian Email');
+          setSendLinkSuccess(`Tautan evaluasi siap: ${errMsg}`);
         }
       }
     } catch (err: any) {
       if (waPopup) waPopup.close();
       console.error('Failed to send evaluation link:', err);
-      setSendLinkError(getApiError(err));
+      const msg = getApiError(err);
+      toast.error(msg, 'Gagal Mengirim Tautan');
+      setSendLinkError(msg);
     } finally {
       setSendingLink(false);
       setSendingChannel(null);

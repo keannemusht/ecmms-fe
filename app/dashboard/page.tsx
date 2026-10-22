@@ -54,6 +54,57 @@ const tooltipStyle = {
   color: 'var(--ink-primary)',
 } as const;
 
+interface DepartmentTickProps {
+  x?: string | number;
+  y?: string | number;
+  payload?: {
+    value?: string | number;
+  };
+}
+
+const renderDepartmentTick = (props: DepartmentTickProps) => {
+  const { x = 0, y = 0, payload } = props;
+  const value = String(payload?.value || '');
+
+  // Wrap long multi-word labels (e.g. "FA & Procurement") onto two centered lines
+  if (value.includes(' ') && value.length > 10) {
+    const words = value.split(' ');
+    const mid = Math.ceil(words.length / 2);
+    const line1 = words.slice(0, mid).join(' ');
+    const line2 = words.slice(mid).join(' ');
+
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text
+          x={0}
+          y={0}
+          textAnchor="middle"
+          fill="var(--ink-secondary)"
+          fontSize={10}
+        >
+          <tspan x={0} dy={10}>{line1}</tspan>
+          <tspan x={0} dy={12}>{line2}</tspan>
+        </text>
+      </g>
+    );
+  }
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text
+        x={0}
+        y={0}
+        dy={12}
+        textAnchor="middle"
+        fill="var(--ink-secondary)"
+        fontSize={10}
+      >
+        {value}
+      </text>
+    </g>
+  );
+};
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const { t } = useUI();
@@ -170,8 +221,15 @@ export default function DashboardPage() {
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={charts?.departmentData || []}>
-                <XAxis dataKey="name" stroke="var(--ink-secondary)" fontSize={11} tickLine={false} axisLine={false} />
+              <BarChart data={charts?.departmentData || []} margin={{ top: 10, right: 10, left: -15, bottom: 5 }}>
+                <XAxis
+                  dataKey="name"
+                  interval={0}
+                  tick={renderDepartmentTick}
+                  height={35}
+                  tickLine={false}
+                  axisLine={false}
+                />
                 <YAxis stroke="var(--ink-secondary)" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'var(--bg-muted)' }} />
                 <Bar dataKey="value" fill="#9C6B2E" radius={[4, 4, 0, 0]} maxBarSize={42} />

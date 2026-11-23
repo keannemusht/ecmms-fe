@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   Building2,
   BriefcaseBusiness,
+  GitCompare,
   X,
 } from 'lucide-react';
 import { cn } from './ui';
@@ -38,6 +39,7 @@ const navItems: NavItem[] = [
   { href: '/dashboard', labelKey: 'dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'MANAGEMENT'], match: (p) => p === '/dashboard' },
   { href: '/employees', labelKey: 'employees', icon: Users, roles: ['ADMIN', 'MANAGEMENT'], match: (p) => p.startsWith('/employees') },
   { href: '/contracts', labelKey: 'contracts', icon: FileText, roles: ['ADMIN', 'MANAGEMENT'], match: (p) => p.startsWith('/contracts') },
+  { href: '/reconcile', labelKey: 'reconcile', icon: GitCompare, roles: ['ADMIN', 'MANAGEMENT'], match: (p) => p.startsWith('/reconcile') },
   { href: '/evaluations', labelKey: 'evaluations', icon: FileCheck2, roles: ['ADMIN', 'MANAGEMENT'], match: (p) => p.startsWith('/evaluations') },
   { href: '/notifications', labelKey: 'notifications', icon: Bell, roles: ['ADMIN', 'MANAGEMENT', 'USER'], match: (p) => p.startsWith('/notifications') },
   { href: '/notification-settings', labelKey: 'notificationSettings', icon: SlidersHorizontal, roles: ['ADMIN'], match: (p) => p.startsWith('/notification-settings') },
